@@ -17,7 +17,8 @@
       "matches": ["https://www.pesuacademy.com/Academy/*"],
       "js": ["lib/pdf-lib.min.js", "lib/jszip.min.js", "content.js"],
       "css": ["panel.css"],
-      "run_at": "document_idle"
+      "run_at": "document_idle",
+      "world": "MAIN"
     }
   ],
   "action": {

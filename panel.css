@@ -148,8 +148,29 @@
 }
 
 /* ─── Tab button ─── */
+#pesu-dl-tab-btn {
+  list-style: none;
+}
+
 #pesu-dl-tab-btn a {
   cursor: pointer;
+  color: #1d3756;
+  font-weight: 400;
+  text-decoration: none;
+  padding: 8px 15px;
+  display: inline-block;
+  border-bottom: 2px solid transparent;
+  transition: color 0.2s, border-color 0.2s;
+  font-size: 14px;
+}
+
+#pesu-dl-tab-btn a:hover {
+  color: #0091CD;
+}
+
+/* Active state — when panel is open */
+#pesu-dl-tab-btn.active a {
   color: #0091CD;
   font-weight: 600;
+  border-bottom: 2px solid #0091CD;
 }

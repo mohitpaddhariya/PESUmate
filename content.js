@@ -4,31 +4,56 @@
 (function () {
   'use strict';
 
-  // ─── Wait for jQuery and page to be ready ───
+  // Prevent double-init
+  if (window._pesuMateInitialized) return;
+  window._pesuMateInitialized = true;
+
+  // ─── Shared state (persists across SPA navigations) ───
+  var cache = {};
+
+  // ─── Bootstrap: watch for #courselistunit to appear/reappear ───
+  function boot() {
+    var bodyObserver = new MutationObserver(function () {
+      var el = document.getElementById('courselistunit');
+      var btn = document.getElementById('pesu-dl-tab-btn');
+      // Re-inject whenever #courselistunit exists but our tab button doesn't
+      if (el && !btn) {
+        console.log('[PESUmate] #courselistunit found without tab button — injecting');
+        inject();
+      }
+    });
+
+    bodyObserver.observe(document.body, { childList: true, subtree: true });
+
+    // Also try immediately if already present
+    if (document.getElementById('courselistunit') && !document.getElementById('pesu-dl-tab-btn')) {
+      inject();
+    }
+  }
+
   function waitForJQuery(cb) {
     if (window.jQuery) return cb(window.jQuery);
-    const t = setInterval(function () {
+    var t = setInterval(function () {
       if (window.jQuery) { clearInterval(t); cb(window.jQuery); }
     }, 200);
   }
 
-  waitForJQuery(function ($) {
-    // Only run on Course Units page
-    if (!$('#courselistunit').length) return;
+  // ─── Main injection ───
+  function inject() {
+    waitForJQuery(function ($) {
+      if (!$('#courselistunit').length) return;
+      console.log('[PESUmate] Injecting UI');
 
-    console.log('[PESUmate] Content script loaded');
-
-    // ─── State ───
-    const cache = {};
-    let _fetching = false;
-    let _lastRenderedTab = '';
+    // ─── State (per injection) ───
+    var _fetching = false;
+    var _lastRenderedTab = '';
 
     // ─── Build DOM ───
     $('#pesu-dl-helper').remove();
     $('#pesu-dl-tab-btn').remove();
 
     // Tab button
-    const navBtn = $('<li id="pesu-dl-tab-btn"><a href="javascript:void(0)">Download All</a></li>');
+    const navBtn = $('<li id="pesu-dl-tab-btn"><a href="javascript:void(0)">PESUmate</a></li>');
     $('#courselistunit').append(navBtn);
 
     // Panel
@@ -48,15 +73,17 @@
     topBar.append(refetchBtn).append(closeBtn);
 
     container.append(topBar).append(titleDiv).append(statusDiv).append(progressWrap).append(contentArea);
-    closeBtn.on('click', function () { container.slideUp(200); });
+    closeBtn.on('click', function () { container.slideUp(200); navBtn.removeClass('active'); });
     $('body').append(container);
 
     // ─── Toggle panel ───
     navBtn.on('click', function () {
       if (container.is(':visible')) {
         container.slideUp(200);
+        navBtn.removeClass('active');
       } else {
         container.slideDown(200);
+        navBtn.addClass('active');
         var currentTab = $('#courselistunit li.active a').text().trim();
         if (currentTab !== _lastRenderedTab) {
           _lastRenderedTab = currentTab;
@@ -346,11 +373,14 @@
     var tabContainer = document.querySelector('#courselistunit');
     if (tabContainer) {
       var observer = new MutationObserver(function () {
-        var newTab = $('#courselistunit li.active a').text().trim();
+        var newTab = $('#courselistunit li.active a').not('#pesu-dl-tab-btn a').text().trim();
         if (newTab && newTab !== _lastActiveTab) {
           console.log('[PESUmate] Tab: ' + _lastActiveTab + ' -> ' + newTab);
           _lastActiveTab = newTab;
-          if (container.is(':visible')) fetchAndRender();
+          if (container.is(':visible')) {
+            navBtn.addClass('active');
+            fetchAndRender();
+          }
         }
       });
       observer.observe(tabContainer, { subtree: true, attributes: true, attributeFilter: ['class'] });
@@ -394,5 +424,13 @@
         ? (bytes / (1024 * 1024)).toFixed(1) + ' MB'
         : (bytes / 1024).toFixed(0) + ' KB';
     }
-  });
+    }); // end waitForJQuery
+  } // end inject
+
+  // ─── Start ───
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
 })();
