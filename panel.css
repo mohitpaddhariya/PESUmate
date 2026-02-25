@@ -1,0 +1,155 @@
+/* ─── PESUmate Panel ─── */
+#pesu-dl-helper {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 99999;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  border-top: 3px solid #0091CD;
+  padding: 16px;
+  max-height: 70vh;
+  overflow-y: auto;
+  width: 380px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+  font-family: inherit;
+  display: none;
+}
+
+/* ─── Title ─── */
+#pesu-dl-title {
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 8px;
+  padding-right: 50px;
+  color: #1d3756;
+}
+
+/* ─── Status ─── */
+#pesu-dl-status {
+  font-size: 11px;
+  color: #999;
+  margin-bottom: 6px;
+}
+
+/* ─── Top bar ─── */
+.pesu-dl-topbar {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  display: flex;
+  gap: 6px;
+}
+
+.pesu-dl-topbar button {
+  background: none;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.pesu-dl-btn-refresh {
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  font-size: 13px;
+  color: #0091CD;
+  padding: 2px 6px;
+}
+
+.pesu-dl-btn-close {
+  border: none;
+  font-size: 18px;
+  color: #999;
+  padding: 0 2px;
+}
+
+/* ─── Progress bar ─── */
+.pesu-dl-progress-wrap {
+  width: 100%;
+  background: #e9ecef;
+  border-radius: 4px;
+  height: 6px;
+  margin-bottom: 10px;
+  overflow: hidden;
+  display: none;
+}
+
+.pesu-dl-progress-bar {
+  width: 0%;
+  background: #0091CD;
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+/* ─── Merge button ─── */
+.pesu-dl-merge-btn {
+  background: #0091CD;
+  color: #fff;
+  border: none;
+  border-radius: 3px;
+  padding: 8px 14px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+  width: 100%;
+  margin-bottom: 10px;
+  letter-spacing: 0.3px;
+}
+
+.pesu-dl-merge-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* ─── File item buttons ─── */
+.pesu-dl-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 3px;
+  padding: 6px 10px;
+  margin-bottom: 3px;
+  cursor: pointer;
+  font-size: 12px;
+  color: #1d3756;
+  transition: background 0.15s;
+}
+
+.pesu-dl-item:hover {
+  background: #e9ecef;
+}
+
+.pesu-dl-item.done {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.pesu-dl-item.merged {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.pesu-dl-item.zipped {
+  background: #e3f2fd;
+  color: #1565c0;
+}
+
+.pesu-dl-item.skipped {
+  background: #fff8e1;
+  color: #f57f17;
+}
+
+.pesu-dl-item.failed {
+  background: #fce4ec;
+  color: #c62828;
+}
+
+/* ─── Tab button ─── */
+#pesu-dl-tab-btn a {
+  cursor: pointer;
+  color: #0091CD;
+  font-weight: 600;
+}
