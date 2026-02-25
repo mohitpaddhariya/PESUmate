@@ -104,6 +104,5 @@ This project is licensed under the [MIT License](LICENSE). See [CONTRIBUTING](do
 
 ## Acknowledgments
 
-- API flow originally reverse-engineered from [frinds.py](https://github.com/)
 - [pdf-lib](https://pdf-lib.js.org/) by Andrew Dillon
 - [JSZip](https://stuk.github.io/jszip/) by Stuart Knightley

@@ -45,7 +45,7 @@ Page load → manifest injects scripts at document_idle
 
 ## API flow (3-step discovery)
 
-PESU Academy doesn't expose direct download URLs on the page. The extension replicates the academy's internal API flow (originally reverse-engineered from a Python CLI tool called `frinds.py`).
+PESU Academy doesn't expose direct download URLs on the page.
 
 ### Step 1 — Extract subject ID
 
