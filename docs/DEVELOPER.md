@@ -23,7 +23,7 @@ manifest.json
 Page load → manifest injects scripts at document_idle
   → content.js waits for jQuery (from PESU page)
   → checks for #courselistunit
-  → injects "Download All" tab + floating panel
+  → injects "PESUmate" tab + floating panel
   → waits for user interaction
   → fetch → render → cache
 ```

@@ -4,7 +4,7 @@ A Chrome extension that adds bulk slide downloading to [PESU Academy](https://ww
 
 ## Features
 
-- **Download All tab** — appears alongside your course unit tabs
+- **PESUmate tab** — appears alongside your course unit tabs
 - **PDF merge** — all PDF slides combined into a single file via pdf-lib
 - **PPTX ZIP** — PowerPoint files bundled into one ZIP via JSZip
 - **Individual downloads** — click any file to download it separately
@@ -34,8 +34,8 @@ A Chrome extension that adds bulk slide downloading to [PESU Academy](https://ww
 
 1. Log in to [PESU Academy](https://www.pesuacademy.com/Academy/)
 2. Navigate to **My Courses → [Your Subject] → Course Units**
-3. Click the **Download All** tab that appears at the end of the unit tabs
-4. The download panel opens — click **Merge & Download All** to get everything
+3. Click the **PESUmate** tab that appears at the end of the unit tabs
+4. The download panel opens — click **Merge & Download** to get everything
 5. Or click individual files to download them one by one
 
 ## How it works

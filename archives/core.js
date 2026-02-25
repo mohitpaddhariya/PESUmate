@@ -27,7 +27,7 @@
   if (window._pesuTabObserver) { window._pesuTabObserver.disconnect(); window._pesuTabObserver = null; }
 
   // ─── Download button at end of unit tabs ───
-  const navBtn = $('<li id="pesu-dl-tab-btn"><a href="javascript:void(0)" style="cursor:pointer;color:#0091CD;font-weight:600;">Download All</a></li>');
+  const navBtn = $('<li id="pesu-dl-tab-btn"><a href="javascript:void(0)" style="cursor:pointer;color:#0091CD;font-weight:600;">PESUmate</a></li>');
   $('#courselistunit').append(navBtn);
 
   const container = $('<div id="pesu-dl-helper"></div>').css({
@@ -101,7 +101,7 @@
     console.log('[PESUmate] ' + activeUnitText + ' — ' + downloadItems.length + ' files' + (fromCache ? ' (cached)' : ''));
 
     // Merge & Download button
-    const dlAllBtn = $('<button>Merge & Download All</button>').css({
+    const dlAllBtn = $('<button>Merge & Download</button>').css({
       background: '#0091CD', color: '#fff', border: 'none', borderRadius: '3px',
       padding: '8px 14px', cursor: 'pointer', fontWeight: '600', fontSize: '13px',
       width: '100%', marginBottom: '10px', letterSpacing: '0.3px'

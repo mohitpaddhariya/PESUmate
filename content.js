@@ -105,7 +105,7 @@
       console.log('[PESUmate] ' + unitText + ' \u2014 ' + items.length + ' files' + (fromCache ? ' (cached)' : ''));
 
       // Merge button
-      var dlAllBtn = $('<button class="pesu-dl-merge-btn">Merge & Download All</button>');
+      var dlAllBtn = $('<button class="pesu-dl-merge-btn">Merge & Download</button>');
       dlAllBtn.on('click', function () { mergeAndDownload(unitText, items, dlAllBtn); });
       contentArea.append(dlAllBtn);
 

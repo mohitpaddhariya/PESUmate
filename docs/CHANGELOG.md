@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Chrome extension (Manifest V3) with content script injection
-- "Download All" tab injected into PESU Academy course unit navigation
+- "PESUmate" tab injected into PESU Academy course unit navigation
 - Floating download panel with file listing and progress bar
 - PDF merging — all PDF slides merged into a single file via pdf-lib
 - PPTX zipping — all PowerPoint files bundled into a ZIP via JSZip
