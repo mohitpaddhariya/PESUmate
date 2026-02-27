@@ -5,6 +5,18 @@ All notable changes to PESUmate will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-02-28
+
+### Added
+- **PESUmate AI Chat**: A new floating chat interface allowing students to select course slides and chat with an AI study assistant powered by Google Gemini.
+- Extracted text from PDF and PPTX slides to provide context to the Gemini model.
+- Chat history panel to save and resume conversations about specific course units.
+- Input in the popup extension to allow users to bring their own Gemini API key.
+- Creator branding and open source links added to the popup and chat UI.
+
+### Changed
+- Reorganized the entire codebase into a modern `src/` directory structure (`src/scripts`, `src/styles`, `src/pages`), greatly improving maintainability.
+
 ## [1.0.0] - 2026-02-25
 
 ### Added

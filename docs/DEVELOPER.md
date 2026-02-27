@@ -11,10 +11,14 @@ PESUmate is a **Manifest V3 Chrome extension** that injects a content script int
 ```
 manifest.json
   └─ content_scripts
-       ├─ lib/pdf-lib.min.js   (injected first)
-       ├─ lib/jszip.min.js     (injected second)
-       ├─ content.js           (main logic)
-       └─ panel.css            (styles)
+       ├─ src/scripts/bridge.js        (injected in ISOLATED for API fetch tokens)
+       ├─ lib/pdf-lib.min.js           (injected in MAIN world)
+       ├─ lib/jszip.min.js             (injected in MAIN world)
+       ├─ src/scripts/prompt.js        (AI system prompt)
+       ├─ src/scripts/content.js       (downloads / merging UI logic)
+       ├─ src/scripts/chat.js          (AI streaming interface logic)
+       ├─ src/styles/panel.css         (DL panel styles)
+       └─ src/styles/chat.css          (Chat interface styles)
 ```
 
 ### Execution flow
@@ -35,9 +39,13 @@ Page load → manifest injects scripts at document_idle
 | File | Purpose |
 |------|---------|
 | `manifest.json` | Extension manifest (MV3). Declares content scripts, permissions, icons, popup. |
-| `content.js` | Core logic: DOM injection, API calls, PDF merge, PPTX zip, caching, tab observer. |
-| `panel.css` | All styles for the download panel. PESU-themed colors (#0091CD, #1d3756). |
-| `popup.html` | Toolbar popup. Shows extension info and usage hint. |
+| `src/scripts/background.js` | Service worker managing Gemini API key storage and raw API fetch logic. |
+| `src/scripts/content.js` | Core logic: DOM injection, API calls, PDF merge, PPTX zip, caching, tab observer. |
+| `src/scripts/chat.js` | UI logic for the AI chat sidebar, text extraction parsing from PDF/PPTX, and Markdown rendering. |
+| `src/scripts/prompt.js` | Stores the system instructions string to be read by the AI endpoint. |
+| `src/styles/panel.css` | All styling for the download panel. |
+| `src/styles/chat.css` | All styling for the AI chat panel and slide selection modal. |
+| `src/pages/popup.html` | Toolbar popup. Collects Gemini API key and links to creator documentation. |
 | `lib/pdf-lib.min.js` | pdf-lib v1.17.1 — client-side PDF creation and merging. |
 | `lib/jszip.min.js` | JSZip v3.10.1 — client-side ZIP file generation. |
 
@@ -145,6 +153,22 @@ zip.generateAsync({ type: 'blob' });    // → download
 Output: `{UnitName}_PPTX_files.zip`
 
 Filename deduplication appends `(1)`, `(2)`, etc. for collisions.
+
+### Slide Extraction (AI Chat)
+
+If the user selects a slide to chat with, `chat.js` intercepts it:
+
+```markdown
+[Extracting Text for AI]
+   │
+   ├── Is it a PDF?
+   │   └── Use PDF.js (pdf.js / pdf.worker.js) to extract raw text pages
+   │
+   ├── Is it a PPTX?
+   │   └── Use JSZip to parse `ppt/slides/slide*.xml`, strip XML tags, and extract raw text
+   │
+   └── Combine extracted text into a formatted prompt context for Google Gemini.
+```
 
 ---
 

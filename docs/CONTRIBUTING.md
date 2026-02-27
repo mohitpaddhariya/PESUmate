@@ -47,7 +47,7 @@ cd PESUmate
 3. Click **Load unpacked** → select the `PESUmate` folder
 4. Navigate to PESU Academy to test
 
-After making changes to `content.js` or `panel.css`:
+After making changes to `src/scripts/content.js`, `src/scripts/chat.js` or `src/styles/panel.css`:
 - Click the refresh icon on the extension card in `chrome://extensions`
 - Reload the PESU Academy page
 
