@@ -12,7 +12,7 @@
   max-height: 70vh;
   overflow-y: auto;
   width: 380px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
   font-family: inherit;
   display: none;
 }
@@ -116,6 +116,9 @@
   font-size: 12px;
   color: #1d3756;
   transition: background 0.15s;
+  white-space: normal;
+  word-wrap: break-word;
+  line-height: 1.4;
 }
 
 .pesu-dl-item:hover {

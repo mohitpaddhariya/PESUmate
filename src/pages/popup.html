@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      width: 320px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      padding: 20px;
+      color: #1d3756;
+      background: #f8fafc;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid #e2e8f0;
+    }
+
+    .header h2 {
+      font-size: 17px;
+      color: #0091CD;
+      font-weight: 700;
+    }
+
+    .version {
+      font-size: 10px;
+      color: #94a3b8;
+      background: #e2e8f0;
+      padding: 2px 6px;
+      border-radius: 10px;
+      font-weight: 500;
+    }
+
+    /* Features */
+    .features {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .feature-badge {
+      font-size: 10px;
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+    }
+
+    .feature-badge.dl {
+      background: #dbeafe;
+      color: #1d4ed8;
+    }
+
+    .feature-badge.ai {
+      background: #fef3c7;
+      color: #d97706;
+    }
+
+    /* API Key Section */
+    .api-section {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 14px;
+      margin-bottom: 14px;
+    }
+
+    .api-section h3 {
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #475569;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .api-section h3 .icon {
+      font-size: 14px;
+    }
+
+    .api-input-row {
+      display: flex;
+      gap: 6px;
+    }
+
+    .api-input-row input {
+      flex: 1;
+      padding: 8px 10px;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      font-size: 12px;
+      outline: none;
+      transition: border-color 0.2s;
+      font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+    }
+
+    .api-input-row input:focus {
+      border-color: #0091CD;
+    }
+
+    .api-input-row button {
+      padding: 8px 14px;
+      background: #0091CD;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+      white-space: nowrap;
+    }
+
+    .api-input-row button:hover {
+      background: #007bb5;
+    }
+
+    .api-input-row button:disabled {
+      background: #94a3b8;
+      cursor: default;
+    }
+
+    /* Status */
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 8px;
+      font-size: 11px;
+      color: #64748b;
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .status-dot.connected {
+      background: #22c55e;
+    }
+
+    .status-dot.disconnected {
+      background: #ef4444;
+    }
+
+    /* Hint */
+    .hint {
+      padding: 10px 12px;
+      background: #f0f7fc;
+      border-radius: 8px;
+      font-size: 11px;
+      color: #1d3756;
+      line-height: 1.6;
+      border-left: 3px solid #0091CD;
+    }
+
+    /* Footer & Creator Box */
+    .footer {
+      margin-top: 14px;
+      font-size: 10px;
+      color: #94a3b8;
+      text-align: center;
+    }
+
+    .footer a.gemini-link {
+      color: #0091CD;
+      text-decoration: none;
+      display: inline-block;
+      margin-bottom: 12px;
+    }
+
+    .creator-box {
+      border-top: 1px solid #e2e8f0;
+      padding-top: 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .creator-credits {
+      color: #64748b;
+      font-size: 11px;
+    }
+
+    .creator-credits a {
+      font-weight: 600;
+      color: #1d3756;
+      text-decoration: none;
+    }
+
+    .creator-credits a:hover {
+      text-decoration: underline;
+    }
+
+    .social-links {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .social-links a {
+      color: #64748b;
+      transition: color 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      text-decoration: none;
+    }
+
+    .social-links a:hover {
+      color: #1d3756;
+    }
+
+    .social-links a.gh-link {
+      background: #f1f5f9;
+      padding: 4px 8px;
+      border-radius: 6px;
+      color: #475569;
+      font-weight: 500;
+    }
+
+    .social-links a.gh-link:hover {
+      background: #e2e8f0;
+      color: #0f172a;
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 500;
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    .toast.show {
+      opacity: 1;
+    }
+
+    .toast.success {
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .toast.error {
+      background: #fce4ec;
+      color: #c62828;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="header">
+    <h2>PESUmate</h2>
+    <span class="version">v2.0</span>
+  </div>
+
+  <div class="features">
+    <span class="feature-badge dl">📥 Downloads</span>
+    <span class="feature-badge ai">✨ AI Chat</span>
+  </div>
+
+  <div class="api-section">
+    <h3><span class="icon">🔑</span> Gemini API Key</h3>
+    <div class="api-input-row">
+      <input type="password" id="apiKeyInput" placeholder="Paste your API key..." spellcheck="false">
+      <button id="saveKeyBtn">Save</button>
+    </div>
+    <div class="status" id="keyStatus">
+      <span class="status-dot disconnected" id="statusDot"></span>
+      <span id="statusText">No key set</span>
+    </div>
+  </div>
+
+  <div class="hint">
+    <strong>📥 Downloads:</strong> Open any course on PESU Academy, click the <strong>PESUmate</strong> tab.<br>
+    <strong>✨ AI Chat:</strong> Select slides, click <strong>Chat with Selected</strong> to ask questions about your
+    course material.
+  </div>
+
+  <div class="footer">
+    <a href="https://aistudio.google.com/apikey" target="_blank" class="gemini-link">Get a free Gemini API key
+      &rarr;</a>
+    <div class="creator-box">
+      <div class="creator-credits">
+        Created by <a href="https://pmohit.vercel.app/" target="_blank">Mohit Paddhariya</a>
+      </div>
+      <div class="social-links">
+        <a href="https://github.com/mohitpaddhariya/PESUmate" target="_blank" title="Star on GitHub" class="gh-link">
+          <svg height="16" aria-hidden="true" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true"
+            class="octicon octicon-mark-github">
+            <path fill="currentColor"
+              d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z">
+            </path>
+          </svg>
+          Star on GitHub
+        </a>
+        <a href="https://www.linkedin.com/in/mohit-paddhariya/" target="_blank" title="LinkedIn">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" data-supported-dps="24x24" fill="currentColor"
+            width="16" height="16" focusable="false">
+            <path
+              d="M20.5 2h-17A1.5 1.5 0 002 3.5v17A1.5 1.5 0 003.5 22h17a1.5 1.5 0 001.5-1.5v-17A1.5 1.5 0 0020.5 2zM8 19H5v-9h3zM6.5 8.25A1.75 1.75 0 118.3 6.5a1.78 1.78 0 01-1.8 1.75zM19 19h-3v-4.74c0-1.42-.6-1.93-1.38-1.93A1.74 1.74 0 0013 14.19a.66.66 0 000 .14V19h-3v-9h2.9v1.3a3.11 3.11 0 012.7-1.4c1.55 0 3.36.86 3.36 3.66z">
+            </path>
+          </svg>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="../scripts/popup.js"></script>
+</body>
+
+</html>

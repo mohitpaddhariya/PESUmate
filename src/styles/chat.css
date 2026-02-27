@@ -1,0 +1,824 @@
+/* ─── PESUmate Chat — PESU Academy Theme ─── */
+
+/* Body shift when sidebar is open */
+body.pesu-chat-open {
+  transition: margin-right 0.3s ease;
+}
+
+/* ─── Right Sidebar ─── */
+.pesu-chat-sidebar {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100vh;
+  z-index: 99998;
+  background: #ffffff;
+  border-left: 1px solid #d5dde5;
+  box-shadow: -2px 0 20px rgba(29, 55, 86, 0.10);
+  display: flex;
+  flex-direction: column;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  animation: pesu-slide-in 0.25s ease-out;
+  -webkit-font-smoothing: antialiased;
+}
+
+@keyframes pesu-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(40px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* ─── Drag Handle ─── */
+.pesu-chat-drag-handle {
+  position: absolute;
+  left: -3px;
+  top: 0;
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 10;
+  background: transparent;
+  transition: background 0.15s;
+}
+
+.pesu-chat-drag-handle:hover,
+.pesu-chat-drag-handle.active {
+  background: #0091CD;
+}
+
+/* ─── Header ─── */
+.pesu-chat-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: #1d3756;
+  flex-shrink: 0;
+}
+
+.pesu-chat-header .close-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+.pesu-chat-header .close-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+}
+
+.pesu-chat-header .title {
+  flex: 1;
+  font-weight: 600;
+  font-size: 14px;
+  color: #ffffff;
+  letter-spacing: -0.1px;
+}
+
+.pesu-chat-header .title .creator {
+  font-size: 10px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.5);
+  margin-left: 6px;
+  letter-spacing: 0.3px;
+}
+
+.pesu-chat-header .actions {
+  display: flex;
+  gap: 6px;
+}
+
+.pesu-chat-header .actions button {
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.7);
+  transition: all 0.15s;
+}
+
+.pesu-chat-header .actions button:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+}
+
+/* ─── Context Banner (expandable) ─── */
+.pesu-chat-context {
+  font-size: 12px;
+  color: #1d3756;
+  border-bottom: 1px solid #e5edf3;
+  flex-shrink: 0;
+}
+
+.pesu-ctx-summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  cursor: pointer;
+  transition: background 0.15s;
+  user-select: none;
+  background: #eaf4fb;
+}
+
+.pesu-ctx-summary:hover {
+  background: #ddeef8;
+}
+
+.pesu-ctx-summary strong {
+  color: #0091CD;
+}
+
+.pesu-ctx-arrow {
+  margin-left: auto;
+  font-size: 10px;
+  color: #7a8fa3;
+}
+
+/* Expanded slide list */
+.pesu-ctx-list {
+  padding: 4px 0;
+  background: #f8fafc;
+}
+
+.pesu-ctx-slide {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 16px;
+  font-size: 11px;
+}
+
+.pesu-ctx-status {
+  width: 14px;
+  text-align: center;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.pesu-ctx-status.ok {
+  color: #059669;
+}
+
+.pesu-ctx-status.none {
+  color: #9ca3af;
+}
+
+.pesu-ctx-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #374151;
+}
+
+.pesu-ctx-remove {
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: none;
+  color: #9ca3af;
+  font-size: 14px;
+  cursor: pointer;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+.pesu-ctx-remove:hover {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.pesu-ctx-add {
+  display: block;
+  width: calc(100% - 32px);
+  margin: 6px 16px 8px;
+  padding: 6px;
+  border: 1px dashed #c7d5e0;
+  border-radius: 5px;
+  background: none;
+  color: #0091CD;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: center;
+}
+
+.pesu-ctx-add:hover {
+  background: #eaf4fb;
+  border-color: #0091CD;
+}
+
+/* Add-to-chat banner */
+.pesu-ctx-add-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: #fef3c7;
+  border-bottom: 1px solid #fde68a;
+  font-size: 12px;
+  color: #92400e;
+  flex-shrink: 0;
+}
+
+.pesu-ctx-add-banner span {
+  flex: 1;
+}
+
+.pesu-ctx-add-banner button {
+  padding: 5px 12px;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+}
+
+#pesu-ctx-add-confirm {
+  background: #1d3756;
+  color: #fff;
+}
+
+#pesu-ctx-add-confirm:hover {
+  background: #254a6e;
+}
+
+#pesu-ctx-add-cancel {
+  background: rgba(0, 0, 0, 0.05);
+  color: #92400e;
+}
+
+#pesu-ctx-add-cancel:hover {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+/* ─── Chat Toggle Button (in PESUmate panel) ─── */
+.pesu-chat-toggle-btn {
+  background: #1d3756;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 9px 14px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 12px;
+  width: 100%;
+  margin-bottom: 10px;
+  letter-spacing: 0.2px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: background 0.2s;
+}
+
+.pesu-chat-toggle-btn:hover {
+  background: #254a6e;
+}
+
+.pesu-chat-toggle-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* ─── Select All Row ─── */
+.pesu-select-all-row {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  margin-bottom: 6px;
+  font-size: 12px;
+  color: #4b6a8a;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+
+.pesu-select-all-row:hover {
+  background: #f5f8fb;
+}
+
+.pesu-select-all-row input[type="checkbox"],
+.pesu-dl-item-row input[type="checkbox"] {
+  accent-color: #0091CD;
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+/* ─── Item Row with Checkbox ─── */
+.pesu-dl-item-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 3px;
+}
+
+.pesu-dl-item-row .pesu-dl-item {
+  margin-bottom: 0;
+  flex: 1;
+}
+
+/* ─── Extraction Progress ─── */
+.pesu-chat-extract-progress {
+  padding: 18px;
+}
+
+.pesu-chat-extract-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.pesu-chat-extract-item .icon {
+  width: 16px;
+  text-align: center;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.pesu-chat-extract-item .name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pesu-chat-extract-item.done {
+  color: #059669;
+}
+
+.pesu-chat-extract-item.active {
+  color: #0091CD;
+  font-weight: 500;
+}
+
+.pesu-chat-extract-item.failed {
+  color: #dc2626;
+}
+
+.pesu-chat-extract-item .spinner-sm {
+  width: 14px;
+  height: 14px;
+  border: 2px solid #d5e8f5;
+  border-top-color: #0091CD;
+  border-radius: 50%;
+  animation: pesu-spin 0.7s linear infinite;
+}
+
+@keyframes pesu-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ─── Messages Area ─── */
+.pesu-chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 18px;
+  min-height: 0;
+}
+
+/* Welcome */
+.pesu-chat-welcome {
+  text-align: center;
+  padding: 24px 16px;
+}
+
+.pesu-chat-welcome h4 {
+  font-size: 14px;
+  color: #1d3756;
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+
+.pesu-chat-welcome p {
+  font-size: 12px;
+  color: #7a8fa3;
+  line-height: 1.5;
+}
+
+/* ─── Suggested Chips ─── */
+.pesu-chat-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 0;
+  margin-bottom: 8px;
+  justify-content: center;
+}
+
+.pesu-chat-chip {
+  background: #f0f7fc;
+  border: 1px solid #c7e0f0;
+  border-radius: 20px;
+  padding: 7px 14px;
+  font-size: 11px;
+  color: #1d3756;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-weight: 500;
+}
+
+.pesu-chat-chip:hover {
+  background: #e0f0fa;
+  border-color: #93c9e6;
+}
+
+/* ─── Message Bubbles ─── */
+.pesu-chat-msg {
+  margin-bottom: 16px;
+}
+
+.pesu-chat-msg-label {
+  font-size: 10px;
+  color: #7a8fa3;
+  margin-bottom: 4px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.pesu-chat-msg-bubble {
+  padding: 12px 16px;
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.7;
+  word-wrap: break-word;
+}
+
+.pesu-chat-msg.user .pesu-chat-msg-bubble {
+  background: #1d3756;
+  color: #fff;
+  border-radius: 10px 10px 2px 10px;
+  margin-left: 40px;
+}
+
+.pesu-chat-msg.ai .pesu-chat-msg-bubble {
+  background: #f5f8fb;
+  color: #1d3756;
+  border: 1px solid #e5edf3;
+  border-radius: 10px 10px 10px 2px;
+  margin-right: 20px;
+}
+
+/* ─── Copy Button (below AI message) ─── */
+.pesu-chat-msg-actions {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.pesu-chat-msg:hover .pesu-chat-msg-actions {
+  opacity: 1;
+}
+
+.pesu-chat-copy-btn {
+  background: none;
+  border: none;
+  padding: 3px 8px;
+  font-size: 11px;
+  cursor: pointer;
+  color: #7a8fa3;
+  border-radius: 4px;
+  transition: all 0.15s;
+  font-weight: 500;
+}
+
+.pesu-chat-copy-btn:hover {
+  color: #1d3756;
+  background: #eaf4fb;
+}
+
+/* ─── Markdown in AI bubbles ─── */
+.pesu-chat-msg.ai .pesu-chat-msg-bubble pre {
+  background: #1d3756;
+  color: #e5edf3;
+  padding: 10px 12px;
+  border-radius: 6px;
+  font-size: 11px;
+  overflow-x: auto;
+  margin: 8px 0;
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+  line-height: 1.5;
+}
+
+.pesu-chat-msg.ai .pesu-chat-msg-bubble code {
+  background: #e5edf3;
+  padding: 2px 5px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+}
+
+.pesu-chat-msg.ai .pesu-chat-msg-bubble pre code {
+  background: none;
+  padding: 0;
+}
+
+.pesu-chat-msg.ai .pesu-chat-msg-bubble ul,
+.pesu-chat-msg.ai .pesu-chat-msg-bubble ol {
+  padding-left: 18px;
+  margin: 6px 0;
+}
+
+.pesu-chat-msg.ai .pesu-chat-msg-bubble li {
+  margin: 3px 0;
+}
+
+.pesu-chat-msg.ai .pesu-chat-msg-bubble h1,
+.pesu-chat-msg.ai .pesu-chat-msg-bubble h2,
+.pesu-chat-msg.ai .pesu-chat-msg-bubble h3 {
+  font-size: 14px;
+  font-weight: 700;
+  margin: 10px 0 4px;
+  color: #1d3756;
+}
+
+/* ─── Streaming cursor ─── */
+.pesu-chat-msg-bubble .streaming-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 14px;
+  background: #0091CD;
+  animation: pesu-blink 0.8s step-end infinite;
+  vertical-align: text-bottom;
+  margin-left: 1px;
+}
+
+@keyframes pesu-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* ─── Typing Indicator ─── */
+.pesu-chat-typing {
+  display: none;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 18px;
+  flex-shrink: 0;
+}
+
+.pesu-chat-typing .label {
+  font-size: 11px;
+  color: #7a8fa3;
+  margin-right: 6px;
+  font-weight: 500;
+}
+
+.pesu-chat-typing .dot {
+  width: 4px;
+  height: 4px;
+  background: #0091CD;
+  border-radius: 50%;
+  animation: pesu-typing 1.2s infinite;
+}
+
+.pesu-chat-typing .dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.pesu-chat-typing .dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes pesu-typing {
+
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.3;
+  }
+
+  30% {
+    transform: translateY(-3px);
+    opacity: 1;
+  }
+}
+
+/* ─── Error / Warning ─── */
+.pesu-chat-error {
+  background: #fef2f2;
+  border: 1px solid #fee2e2;
+  color: #991b1b;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  margin-bottom: 10px;
+  line-height: 1.5;
+}
+
+.pesu-chat-image-warn {
+  background: #fffbeb;
+  border: 1px solid #fef3c7;
+  color: #92400e;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  margin-bottom: 10px;
+  line-height: 1.5;
+}
+
+/* ─── Input Area ─── */
+.pesu-chat-input-area {
+  display: flex;
+  gap: 8px;
+  padding: 14px 16px;
+  border-top: 1px solid #e5edf3;
+  flex-shrink: 0;
+}
+
+.pesu-chat-input-area textarea {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1px solid #c7d5e0;
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: inherit;
+  resize: none;
+  outline: none;
+  min-height: 40px;
+  max-height: 120px;
+  transition: border-color 0.2s;
+  line-height: 1.5;
+  background: #fff;
+}
+
+.pesu-chat-input-area textarea:focus {
+  border-color: #0091CD;
+}
+
+.pesu-chat-input-area textarea::placeholder {
+  color: #9cb0c2;
+}
+
+.pesu-chat-send-btn {
+  background: #0091CD;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  width: 40px;
+  height: 40px;
+  cursor: pointer;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+  flex-shrink: 0;
+  align-self: flex-end;
+}
+
+.pesu-chat-send-btn:hover {
+  background: #007bb5;
+}
+
+.pesu-chat-send-btn:disabled {
+  background: #b8d9ea;
+  cursor: default;
+}
+
+/* ─── Scrollbar ─── */
+.pesu-chat-messages::-webkit-scrollbar {
+  width: 4px;
+}
+
+.pesu-chat-messages::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.pesu-chat-messages::-webkit-scrollbar-thumb {
+  background: #d5dde5;
+  border-radius: 4px;
+}
+
+.pesu-chat-messages::-webkit-scrollbar-thumb:hover {
+  background: #b8c6d2;
+}
+
+/* ─── History Panel ─── */
+.pesu-chat-history-panel {
+  background: #f8fafc;
+  border-bottom: 1px solid #e5edf3;
+  max-height: 280px;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+
+.pesu-chat-history-title {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #7a8fa3;
+  padding: 12px 16px 6px;
+}
+
+.pesu-chat-history-empty {
+  padding: 20px 16px;
+  text-align: center;
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.pesu-chat-history-row {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid #eef2f6;
+  transition: opacity 0.2s, transform 0.2s;
+}
+
+.pesu-chat-history-row:last-child {
+  border-bottom: none;
+}
+
+.pesu-chat-history-item {
+  display: block;
+  flex: 1;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 10px 16px;
+  cursor: pointer;
+  transition: background 0.15s;
+  min-width: 0;
+}
+
+.pesu-chat-history-row:hover {
+  background: #eaf4fb;
+}
+
+.pesu-chat-history-item .unit-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: #1d3756;
+  margin-bottom: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pesu-chat-history-item .meta {
+  font-size: 10px;
+  color: #7a8fa3;
+}
+
+.pesu-chat-history-delete {
+  background: none;
+  border: none;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #9ca3af;
+  border-radius: 4px;
+  transition: all 0.15s;
+  flex-shrink: 0;
+  opacity: 0;
+  margin-right: 8px;
+}
+
+.pesu-chat-history-row:hover .pesu-chat-history-delete {
+  opacity: 1;
+}
+
+.pesu-chat-history-delete:hover {
+  color: #dc2626;
+  background: #fee2e2;
+}
