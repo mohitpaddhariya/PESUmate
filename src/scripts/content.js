@@ -18,7 +18,6 @@
       var btn = document.getElementById('pesu-dl-tab-btn');
       // Re-inject whenever #courselistunit exists but our tab button doesn't
       if (el && !btn) {
-        console.log('[PESUmate] #courselistunit found without tab button — injecting');
         inject();
       }
     });
@@ -42,7 +41,6 @@
   function inject() {
     waitForJQuery(function ($) {
       if (!$('#courselistunit').length) return;
-      console.log('[PESUmate] Injecting UI');
 
       // ─── State (per injection) ───
       var _fetching = false;
@@ -101,8 +99,6 @@
         progressWrap.hide();
 
         if (!items.length) return;
-
-        console.log('[PESUmate] ' + unitText + ' \u2014 ' + items.length + ' files' + (fromCache ? ' (cached)' : ''));
 
         // Merge button
         var dlAllBtn = $('<button class="pesu-dl-merge-btn">Merge & Download</button>');
@@ -251,7 +247,6 @@
         var activeUnitText = $('#courselistunit li.active a').text().trim();
 
         if (!force && cache[activeUnitText]) {
-          console.log('[PESUmate] Cache hit: ' + activeUnitText);
           renderItems(activeUnitText, cache[activeUnitText], true);
           return;
         }
@@ -356,7 +351,6 @@
           progressWrap.hide();
 
           cache[activeUnitText] = downloadItems;
-          console.log('[PESUmate] Cached: ' + activeUnitText + ' (' + downloadItems.length + ')');
           renderItems(activeUnitText, downloadItems, false);
 
         } catch (err) {
@@ -388,7 +382,6 @@
         var observer = new MutationObserver(function () {
           var newTab = $('#courselistunit li.active a').not('#pesu-dl-tab-btn a').text().trim();
           if (newTab && newTab !== _lastActiveTab) {
-            console.log('[PESUmate] Tab: ' + _lastActiveTab + ' -> ' + newTab);
             _lastActiveTab = newTab;
             if (container.is(':visible')) {
               navBtn.addClass('active');
@@ -398,8 +391,6 @@
         });
         observer.observe(tabContainer, { subtree: true, attributes: true, attributeFilter: ['class'] });
       }
-
-      console.log('[PESUmate] Ready');
 
       // ─── Helpers ───
       function matchUnit(units, text) {

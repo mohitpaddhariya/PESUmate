@@ -9,6 +9,8 @@
     var DEFAULT_WIDTH = 440;
     var MIN_WIDTH = 320;
     var MAX_WIDTH = 800;
+    var PREVIEW_WIDTH = 480;
+    var previewOpen = false;
 
     // ─── Bridge ───
     var _msgId = 0, _pending = {};
@@ -40,6 +42,7 @@
     var sidebarOpen = false;
     var sidebarWidth = parseInt(localStorage.getItem('pesumate_sidebar_w')) || DEFAULT_WIDTH;
     var slideTexts = {}; // { title: extractedText }
+    var slideBuffers = {}; // { title: { buf, isPdf, isZip } }
 
     // ─── Persistent History ───
     function saveHistory(unit) {
@@ -116,6 +119,7 @@
             '<button class="close-btn" id="pesu-chat-close" title="Close">&times;</button>' +
             '<div class="title">PESUmate AI <span class="creator">by Mohit Paddhariya</span></div>' +
             '<div class="actions">' +
+            '<button id="pesu-chat-slides-btn" title="Toggle slide preview">Slides</button>' +
             '<button id="pesu-chat-history-btn">History</button>' +
             '<button id="pesu-chat-clear-btn">Clear</button>' +
             '</div>';
@@ -168,6 +172,7 @@
         document.getElementById('pesu-chat-clear-btn').onclick = clearChat;
         document.getElementById('pesu-chat-send-btn').onclick = sendMessage;
         document.getElementById('pesu-chat-history-btn').onclick = toggleHistory;
+        document.getElementById('pesu-chat-slides-btn').onclick = togglePreviewPanel;
 
         var input = document.getElementById('pesu-chat-input');
         input.onkeydown = function (e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } };
@@ -197,10 +202,14 @@
         document.addEventListener('mousemove', function (e) {
             if (!dragging) return;
             var w = window.innerWidth - e.clientX;
-            w = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, w));
+            if (previewOpen) w = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, Math.min(w, window.innerWidth - PREVIEW_WIDTH - 20)));
+            else w = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, w));
             sidebarWidth = w;
             sidebar.style.width = w + 'px';
-            document.body.style.marginRight = w + 'px';
+            updateBodyMargin();
+            // Reposition preview panel
+            var pp = document.getElementById('pesu-preview-panel');
+            if (pp) pp.style.right = w + 'px';
         });
 
         document.addEventListener('mouseup', function () {
@@ -211,6 +220,14 @@
             document.body.style.userSelect = '';
             localStorage.setItem('pesumate_sidebar_w', sidebarWidth);
         });
+    }
+
+    function updateBodyMargin() {
+        if (previewOpen) {
+            document.body.style.marginRight = (sidebarWidth + PREVIEW_WIDTH) + 'px';
+        } else {
+            document.body.style.marginRight = sidebarWidth + 'px';
+        }
     }
 
     // ─── API Key Check ───
@@ -239,6 +256,7 @@
     function closeChat() {
         saveHistory(unitTab());
         sidebarOpen = false;
+        previewOpen = false;
         var sb = document.getElementById('pesu-chat-sidebar');
         if (sb) {
             sb.style.animation = 'none';
@@ -247,6 +265,10 @@
             sb.style.transition = 'opacity 0.2s, transform 0.2s';
             setTimeout(function () { sb.remove(); }, 200);
         }
+        // Remove preview panel
+        var pp = document.getElementById('pesu-preview-panel');
+        if (pp) pp.remove();
+
         document.body.classList.remove('pesu-chat-open');
         document.body.style.marginRight = '';
 
@@ -299,7 +321,7 @@
                     var delBtn = document.createElement('button');
                     delBtn.className = 'pesu-chat-history-delete';
                     delBtn.title = 'Delete this chat';
-                    delBtn.innerHTML = '&#x1F5D1;';
+                    delBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>';
                     delBtn.onclick = function (e) {
                         e.stopPropagation();
                         clearHistory(entry.unit);
@@ -358,10 +380,12 @@
             html += '<div class="pesu-ctx-list">';
             selectedItems.forEach(function (item, idx) {
                 var hasText = slideTexts[item.title] && slideTexts[item.title].length > 0;
-                html += '<div class="pesu-ctx-slide">' +
+                var hasBuf = !!slideBuffers[item.title];
+                html += '<div class="pesu-ctx-slide" data-slide-idx="' + idx + '" data-slide-title="' + item.title.replace(/"/g, '&quot;') + '">' +
                     '<span class="pesu-ctx-status ' + (hasText ? 'ok' : 'none') + '">' +
                     (hasText ? '\u2713' : '\u2013') + '</span>' +
                     '<span class="pesu-ctx-name">' + item.title + '</span>' +
+                    (hasBuf ? '<button class="pesu-ctx-preview" data-idx="' + idx + '" title="Preview">&#128065;</button>' : '') +
                     '<button class="pesu-ctx-remove" data-idx="' + idx + '">\u00d7</button>' +
                     '</div>';
             });
@@ -387,6 +411,15 @@
                 };
             });
 
+            // Preview buttons
+            ctx.querySelectorAll('.pesu-ctx-preview').forEach(function (btn) {
+                btn.onclick = function (e) {
+                    e.stopPropagation();
+                    var idx = parseInt(btn.dataset.idx);
+                    if (selectedItems[idx]) openPreview(selectedItems[idx].title);
+                };
+            });
+
             var addBtn = document.getElementById('pesu-ctx-add');
             if (addBtn) addBtn.onclick = addMoreSlides;
         }
@@ -396,6 +429,7 @@
         if (idx < 0 || idx >= selectedItems.length) return;
         var removed = selectedItems.splice(idx, 1)[0];
         delete slideTexts[removed.title];
+        delete slideBuffers[removed.title];
         rebuildContext();
         renderContextBanner();
 
@@ -414,47 +448,384 @@
         if (slideContext.length > 500000) slideContext = slideContext.slice(0, 500000) + '\n[truncated]';
     }
 
-    function addMoreSlides() {
-        // Temporarily show the PESUmate panel for slide selection
-        var panel = document.getElementById('pesu-dl-helper');
-        var tabBtn = document.getElementById('pesu-dl-tab-btn');
-        if (panel) { panel.style.display = ''; jQuery(panel).slideDown(200); }
-        if (tabBtn) tabBtn.classList.add('active');
+    // ─── Preview Panel (separate left-side panel with PDF/PPTX preview) ───
+    function togglePreviewPanel() {
+        if (previewOpen) {
+            closePreviewPanel();
+        } else {
+            var first = selectedItems.find(function (it) { return !!slideBuffers[it.title]; });
+            if (first) openPreview(first.title);
+        }
+    }
 
-        // Add a one-time listener for the "add to context" action
-        var banner = document.createElement('div');
-        banner.className = 'pesu-ctx-add-banner';
-        banner.id = 'pesu-ctx-add-banner';
-        banner.innerHTML = '<span>Select slides below, then click</span>' +
-            '<button id="pesu-ctx-add-confirm">Add to chat</button>' +
-            '<button id="pesu-ctx-add-cancel">Cancel</button>';
+    function closePreviewPanel() {
+        previewOpen = false;
+        var pp = document.getElementById('pesu-preview-panel');
+        if (pp) {
+            pp.style.opacity = '0';
+            pp.style.transform = 'translateX(-20px)';
+            setTimeout(function () { pp.remove(); }, 200);
+        }
+        updateBodyMargin();
+        // Update Slides button state
+        var btn = document.getElementById('pesu-chat-slides-btn');
+        if (btn) btn.classList.remove('active');
+    }
 
-        var ctx = document.getElementById('pesu-chat-context');
-        if (ctx) ctx.parentNode.insertBefore(banner, ctx.nextSibling);
+    async function openPreview(activeTitle) {
+        // Remove existing preview
+        var old = document.getElementById('pesu-preview-panel');
+        if (old) old.remove();
 
-        document.getElementById('pesu-ctx-add-cancel').onclick = function () {
-            banner.remove();
-            if (panel) panel.style.display = 'none';
-            if (tabBtn) tabBtn.classList.remove('active');
-        };
+        previewOpen = true;
+        updateBodyMargin();
 
-        document.getElementById('pesu-ctx-add-confirm').onclick = function () {
-            // Get checked items from the panel
-            var cbs = document.querySelectorAll('#pesu-dl-content .pesu-dl-item-row input[type="checkbox"]');
-            var newItems = [];
-            cbs.forEach(function (cb) {
-                if (cb.checked) {
-                    var idx = parseInt(cb.dataset.i || cb.dataset.itemIndex);
-                    if (currentItems[idx]) {
-                        var existing = selectedItems.some(function (s) { return s.title === currentItems[idx].title; });
-                        if (!existing) newItems.push(currentItems[idx]);
+        var panel = document.createElement('div');
+        panel.id = 'pesu-preview-panel';
+        panel.className = 'pesu-preview-panel';
+        panel.style.width = PREVIEW_WIDTH + 'px';
+        panel.style.right = sidebarWidth + 'px';
+
+        // Header
+        var header = document.createElement('div');
+        header.className = 'pesu-preview-header';
+        var headerTitle = document.createElement('span');
+        headerTitle.className = 'pesu-preview-title';
+        headerTitle.textContent = 'Slide Preview';
+        var closeBtn = document.createElement('button');
+        closeBtn.className = 'pesu-preview-close';
+        closeBtn.innerHTML = '&times;';
+        closeBtn.onclick = function () { closePreviewPanel(); };
+        header.appendChild(headerTitle);
+        header.appendChild(closeBtn);
+        panel.appendChild(header);
+
+        // Tab bar (always show if multiple files)
+        var titlesWithBuf = selectedItems.filter(function (it) { return !!slideBuffers[it.title]; });
+        var tabBar = document.createElement('div');
+        tabBar.className = 'pesu-preview-tabs';
+        tabBar.id = 'pesu-preview-tabs';
+        titlesWithBuf.forEach(function (item) {
+            var tab = document.createElement('button');
+            tab.className = 'pesu-preview-tab' + (item.title === activeTitle ? ' active' : '');
+            tab.textContent = item.title;
+            tab.dataset.title = item.title;
+            tab.onclick = function () {
+                tabBar.querySelectorAll('.pesu-preview-tab').forEach(function (t) { t.classList.remove('active'); });
+                tab.classList.add('active');
+                renderPreviewContent(item.title, content);
+            };
+            tabBar.appendChild(tab);
+        });
+        panel.appendChild(tabBar);
+
+        // Content area
+        var content = document.createElement('div');
+        content.className = 'pesu-preview-content';
+        content.id = 'pesu-preview-content';
+        panel.appendChild(content);
+
+        // Append to body as a separate fixed panel
+        document.body.appendChild(panel);
+
+        // Update Slides button state
+        var slidesBtn = document.getElementById('pesu-chat-slides-btn');
+        if (slidesBtn) slidesBtn.classList.add('active');
+
+        await renderPreviewContent(activeTitle, content);
+    }
+
+    async function renderPreviewContent(title, container) {
+        container.innerHTML = '<div class="pesu-preview-loading"><div class="spinner-sm"></div> Loading preview...</div>';
+        var data = slideBuffers[title];
+        if (!data) {
+            container.innerHTML = '<div class="pesu-preview-empty">No preview data available</div>';
+            return;
+        }
+
+        if (data.isPdf) {
+            await renderPdfPreview(data.buf, container);
+        } else if (data.isZip) {
+            await renderPptxPreview(data.buf, title, container);
+        } else {
+            container.innerHTML = '<div class="pesu-preview-empty">Unsupported file format</div>';
+        }
+    }
+
+    async function renderPdfPreview(buf, container) {
+        var lib = await loadPdfJs();
+        if (!lib) {
+            container.innerHTML = '<div class="pesu-preview-empty">PDF.js not available</div>';
+            return;
+        }
+
+        try {
+            var doc = await lib.getDocument({ data: new Uint8Array(buf.slice(0)) }).promise;
+            container.innerHTML = '';
+            var pageCount = doc.numPages;
+
+            // Page counter
+            var counter = document.createElement('div');
+            counter.className = 'pesu-preview-page-count';
+            counter.textContent = pageCount + ' page' + (pageCount > 1 ? 's' : '');
+            container.appendChild(counter);
+
+            for (var p = 1; p <= pageCount; p++) {
+                var page = await doc.getPage(p);
+                var viewport = page.getViewport({ scale: 1 });
+                // Scale to fit preview panel width
+                var scale = (PREVIEW_WIDTH - 40) / viewport.width;
+                var scaledViewport = page.getViewport({ scale: scale });
+
+                // Render at 2x for sharper text (Retina-quality)
+                var hiresScale = 2;
+                var hiresViewport = page.getViewport({ scale: scale * hiresScale });
+
+                var wrapper = document.createElement('div');
+                wrapper.className = 'pesu-preview-page';
+
+                var label = document.createElement('div');
+                label.className = 'pesu-preview-page-label';
+                label.textContent = 'Page ' + p;
+                wrapper.appendChild(label);
+
+                var canvas = document.createElement('canvas');
+                canvas.width = hiresViewport.width;
+                canvas.height = hiresViewport.height;
+                canvas.style.width = scaledViewport.width + 'px';
+                canvas.style.height = scaledViewport.height + 'px';
+                canvas.className = 'pesu-preview-canvas';
+                wrapper.appendChild(canvas);
+
+                container.appendChild(wrapper);
+
+                var ctx = canvas.getContext('2d');
+                await page.render({ canvasContext: ctx, viewport: hiresViewport }).promise;
+            }
+        } catch (e) {
+            container.innerHTML = '<div class="pesu-preview-empty">Failed to render PDF: ' + (e.message || e) + '</div>';
+        }
+    }
+
+    async function renderPptxPreview(buf, title, container) {
+        try {
+            // Use @jvmr/pptx-to-html library
+            var canvasW = PREVIEW_WIDTH - 40;
+            var canvasH = Math.round(canvasW * 0.75); // 4:3 aspect ratio
+            var slides = await window.pptxToHtml(buf, {
+                width: canvasW,
+                height: canvasH,
+                scaleToFit: true,
+                letterbox: false
+            });
+
+            container.innerHTML = '';
+
+            var counter = document.createElement('div');
+            counter.className = 'pesu-preview-page-count';
+            counter.textContent = slides.length + ' slide' + (slides.length > 1 ? 's' : '');
+            container.appendChild(counter);
+
+            for (var i = 0; i < slides.length; i++) {
+                var wrapper = document.createElement('div');
+                wrapper.className = 'pesu-preview-pptx-wrapper';
+
+                var label = document.createElement('div');
+                label.className = 'pesu-preview-page-label';
+                label.textContent = 'Slide ' + (i + 1);
+                wrapper.appendChild(label);
+
+                var slideDiv = document.createElement('div');
+                slideDiv.className = 'pesu-preview-pptx-canvas';
+                slideDiv.style.height = canvasH + 'px';
+                slideDiv.innerHTML = slides[i];
+                wrapper.appendChild(slideDiv);
+
+                container.appendChild(wrapper);
+            }
+
+            if (slides.length === 0) {
+                container.innerHTML = '<div class="pesu-preview-empty">No slides found in this PPTX</div>';
+            }
+        } catch (e) {
+            console.error('PPTX preview error:', e);
+            container.innerHTML = '<div class="pesu-preview-empty">Failed to render PPTX: ' + (e.message || e) + '</div>';
+        }
+    }
+
+    // ─── Auto-highlight referenced slide ───
+    function highlightReferencedSlide(responseText) {
+        if (!responseText || selectedItems.length === 0) return;
+
+        var referencedIdx = -1;
+
+        if (selectedItems.length === 1) {
+            // Only one slide — always reference it
+            referencedIdx = 0;
+        } else {
+            // Multi-slide: score each slide by word overlap with AI response
+            var lowerText = responseText.toLowerCase();
+            var bestScore = 0;
+
+            // Common stop words to ignore
+            var stopWords = ['the', 'a', 'an', 'of', 'and', 'in', 'to', 'for', 'is', 'on', 'at', 'by', 'with', 'from'];
+
+            for (var i = 0; i < selectedItems.length; i++) {
+                var title = selectedItems[i].title;
+                var score = 0;
+
+                // Exact title match (highest priority)
+                if (lowerText.indexOf(title.toLowerCase()) !== -1) {
+                    score = 100;
+                } else {
+                    // Word-level scoring
+                    var words = title.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/);
+                    var significantWords = words.filter(function (w) {
+                        return w.length > 2 && stopWords.indexOf(w) === -1;
+                    });
+
+                    for (var j = 0; j < significantWords.length; j++) {
+                        if (lowerText.indexOf(significantWords[j]) !== -1) {
+                            score += (significantWords[j].length > 5) ? 3 : 1; // Longer words worth more
+                        }
                     }
+                }
+
+                if (score > bestScore) {
+                    bestScore = score;
+                    referencedIdx = i;
+                }
+            }
+
+            // Need at least some score to match
+            if (bestScore === 0) referencedIdx = -1;
+        }
+
+
+
+        if (referencedIdx === -1) return;
+
+        // Highlight referenced slide in context banner (if visible)
+        var ctx = document.getElementById('pesu-chat-context');
+        if (ctx && ctx.classList.contains('expanded')) {
+            var slideEl = ctx.querySelector('.pesu-ctx-slide[data-slide-idx="' + referencedIdx + '"]');
+            if (slideEl) {
+                slideEl.classList.add('pesu-ctx-highlight');
+                setTimeout(function () { slideEl.classList.remove('pesu-ctx-highlight'); }, 3000);
+            }
+        }
+
+        // Auto-switch preview tab (ONLY if already open)
+        var targetTitle = selectedItems[referencedIdx].title;
+        if (previewOpen) {
+            var previewTabs = document.getElementById('pesu-preview-tabs');
+            if (previewTabs) {
+                var tabs = previewTabs.querySelectorAll('.pesu-preview-tab');
+                tabs.forEach(function (t) {
+                    if (t.dataset.title === targetTitle && !t.classList.contains('active')) {
+                        t.click();
+                    }
+                });
+            }
+        }
+    }
+
+    function addMoreSlides() {
+        // Remove existing picker if any
+        var existing = document.getElementById('pesu-slide-picker');
+        if (existing) { existing.remove(); return; }
+
+        if (!currentItems || currentItems.length === 0) {
+            showError('No slides available. Make sure the PESUmate panel has loaded slides first.');
+            return;
+        }
+
+        var sidebar = document.getElementById('pesu-chat-sidebar');
+        if (!sidebar) return;
+
+        // Create inline picker overlay
+        var picker = document.createElement('div');
+        picker.id = 'pesu-slide-picker';
+        picker.className = 'pesu-slide-picker';
+
+        // Header
+        var header = document.createElement('div');
+        header.className = 'pesu-slide-picker-header';
+        header.innerHTML = '<span>Add Slides to Context</span>' +
+            '<button class="pesu-slide-picker-close" id="pesu-slide-picker-close">&times;</button>';
+        picker.appendChild(header);
+
+        // Slide list
+        var list = document.createElement('div');
+        list.className = 'pesu-slide-picker-list';
+
+        var checkboxes = [];
+        currentItems.forEach(function (item, idx) {
+            var alreadySelected = selectedItems.some(function (s) { return s.title === item.title; });
+
+            var row = document.createElement('label');
+            row.className = 'pesu-slide-picker-row' + (alreadySelected ? ' already' : '');
+
+            var cb = document.createElement('input');
+            cb.type = 'checkbox';
+            cb.dataset.idx = idx;
+            if (alreadySelected) {
+                cb.checked = true;
+                cb.disabled = true;
+            }
+            checkboxes.push(cb);
+
+            var name = document.createElement('span');
+            name.className = 'pesu-slide-picker-name';
+            name.textContent = (idx + 1) + '. ' + item.title;
+
+            var badge = document.createElement('span');
+            badge.className = 'pesu-slide-picker-badge';
+            badge.textContent = alreadySelected ? 'In context' : '';
+
+            row.appendChild(cb);
+            row.appendChild(name);
+            row.appendChild(badge);
+            list.appendChild(row);
+        });
+        picker.appendChild(list);
+
+        // Footer with actions
+        var footer = document.createElement('div');
+        footer.className = 'pesu-slide-picker-footer';
+        var addBtn = document.createElement('button');
+        addBtn.className = 'pesu-slide-picker-add';
+        addBtn.id = 'pesu-slide-picker-add';
+        addBtn.textContent = 'Add Selected';
+        var cancelBtn = document.createElement('button');
+        cancelBtn.className = 'pesu-slide-picker-cancel';
+        cancelBtn.textContent = 'Cancel';
+        footer.appendChild(cancelBtn);
+        footer.appendChild(addBtn);
+        picker.appendChild(footer);
+
+        // Insert in sidebar after context
+        var ctx = document.getElementById('pesu-chat-context');
+        if (ctx && ctx.nextSibling) {
+            sidebar.insertBefore(picker, ctx.nextSibling);
+        } else {
+            sidebar.appendChild(picker);
+        }
+
+        // Events
+        document.getElementById('pesu-slide-picker-close').onclick = function () { picker.remove(); };
+        cancelBtn.onclick = function () { picker.remove(); };
+
+        addBtn.onclick = function () {
+            var newItems = [];
+            checkboxes.forEach(function (cb) {
+                if (cb.checked && !cb.disabled) {
+                    var idx = parseInt(cb.dataset.idx);
+                    if (currentItems[idx]) newItems.push(currentItems[idx]);
                 }
             });
 
-            banner.remove();
-            if (panel) panel.style.display = 'none';
-            if (tabBtn) tabBtn.classList.remove('active');
+            picker.remove();
 
             if (newItems.length > 0) {
                 selectedItems = selectedItems.concat(newItems);
@@ -462,6 +833,15 @@
                 extractNewSlides(newItems);
             }
         };
+
+        // Update Add button label when checkboxes change
+        function updateAddBtn() {
+            var count = checkboxes.filter(function (c) { return c.checked && !c.disabled; }).length;
+            addBtn.textContent = count > 0 ? 'Add ' + count + ' slide' + (count > 1 ? 's' : '') : 'Add Selected';
+            addBtn.disabled = count === 0;
+        }
+        checkboxes.forEach(function (cb) { if (!cb.disabled) cb.onchange = updateAddBtn; });
+        updateAddBtn();
     }
 
     async function extractNewSlides(newItems) {
@@ -478,6 +858,8 @@
                 var hdr = new Uint8Array(buf.slice(0, 5));
                 var isPdf = hdr[0] === 0x25 && hdr[1] === 0x50 && hdr[2] === 0x44 && hdr[3] === 0x46;
                 var isZip = hdr[0] === 0x50 && hdr[1] === 0x4B;
+                // Cache buffer copy for preview (slice to avoid detached ArrayBuffer)
+                slideBuffers[item.title] = { buf: buf.slice(0), isPdf: isPdf, isZip: isZip };
                 var text = isPdf ? await extractPdf(buf) : isZip ? await extractPptx(buf) : '';
                 slideTexts[item.title] = text.trim() || '';
             } catch (e) {
@@ -488,6 +870,16 @@
         rebuildContext();
         renderContextBanner();
         saveHistory(unitTab());
+
+        // Refresh preview panel to include new tabs
+        var firstNew = newItems.find(function (it) { return !!slideBuffers[it.title]; });
+        if (firstNew) {
+            openPreview(firstNew.title);
+        } else if (previewOpen) {
+            // Re-open with current items to update tab bar
+            var currentActive = selectedItems.find(function (it) { return !!slideBuffers[it.title]; });
+            if (currentActive) openPreview(currentActive.title);
+        }
     }
 
     function clearChat() {
@@ -533,6 +925,9 @@
                 var hdr = new Uint8Array(buf.slice(0, 5));
                 var pdf = hdr[0] === 0x25 && hdr[1] === 0x50 && hdr[2] === 0x44 && hdr[3] === 0x46;
                 var zip = hdr[0] === 0x50 && hdr[1] === 0x4B;
+
+                // Cache buffer copy for preview (slice to avoid detached ArrayBuffer)
+                slideBuffers[item.title] = { buf: buf.slice(0), isPdf: pdf, isZip: zip };
 
                 var text = pdf ? await extractPdf(buf) : zip ? await extractPptx(buf) : '';
 
@@ -583,6 +978,10 @@
         }
 
         saveHistory(unitTab());
+
+        // Auto-open preview panel with the first extracted slide
+        var firstWithBuf = selectedItems.find(function (it) { return !!slideBuffers[it.title]; });
+        if (firstWithBuf) openPreview(firstWithBuf.title);
     }
 
     function showWarning(parent, msg) {
@@ -593,7 +992,7 @@
     }
 
     function showChips(parent) {
-        var chips = ['Summarize all slides', 'What are the key concepts?', 'Quiz me on this'];
+        var chips = ['Summarize key concepts', 'What are the likely exam questions?', 'Give me a real-world example'];
         var c = document.createElement('div');
         c.className = 'pesu-chat-suggestions';
         c.id = 'pesu-chat-suggestions';
@@ -825,6 +1224,9 @@
         chatMessages.push({ role: 'model', text: fullText });
         saveHistory(unitTab());
 
+        // Auto-highlight referenced slide
+        highlightReferencedSlide(fullText);
+
         isProcessing = false;
         document.getElementById('pesu-chat-send-btn').disabled = false;
     }
@@ -993,5 +1395,5 @@
     }
 
     // ─── Init ───
-    waitReady(function () { console.log('[PESUmate Chat] v4.0 ready'); });
+    waitReady(function () { });
 })();

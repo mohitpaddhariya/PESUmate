@@ -14,6 +14,7 @@ manifest.json
        ├─ src/scripts/bridge.js        (injected in ISOLATED for API fetch tokens)
        ├─ lib/pdf-lib.min.js           (injected in MAIN world)
        ├─ lib/jszip.min.js             (injected in MAIN world)
+       ├─ lib/pptx-to-html.browser.js  (injected in MAIN world)
        ├─ src/scripts/prompt.js        (AI system prompt)
        ├─ src/scripts/content.js       (downloads / merging UI logic)
        ├─ src/scripts/chat.js          (AI streaming interface logic)
@@ -48,6 +49,7 @@ Page load → manifest injects scripts at document_idle
 | `src/pages/popup.html` | Toolbar popup. Collects Gemini API key and links to creator documentation. |
 | `lib/pdf-lib.min.js` | pdf-lib v1.17.1 — client-side PDF creation and merging. |
 | `lib/jszip.min.js` | JSZip v3.10.1 — client-side ZIP file generation. |
+| `lib/pptx-to-html.browser.js` | @jvmr/pptx-to-html — client-side PPTX to HTML rendering (bundled via esbuild). |
 
 ---
 
@@ -252,5 +254,6 @@ The extension uses:
 |---------|---------|------|---------|---------|
 | pdf-lib | 1.17.1 | ~525 KB | PDF merging | MIT |
 | JSZip | 3.10.1 | ~98 KB | ZIP creation | MIT / GPLv3 |
+| pptx-to-html | 1.0.0 | ~257 KB | PPTX Slide Preview rendering | MIT |
 
-Both are bundled locally in `lib/` — no CDN calls at runtime.
+All three are bundled locally in `lib/` — no CDN calls at runtime.

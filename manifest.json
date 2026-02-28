@@ -36,6 +36,7 @@
       "js": [
         "lib/pdf-lib.min.js",
         "lib/jszip.min.js",
+        "lib/pptx-to-html.browser.js",
         "src/scripts/prompt.js",
         "src/scripts/content.js",
         "src/scripts/chat.js"

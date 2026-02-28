@@ -4,6 +4,7 @@
 
 | Version | Supported |
 |---------|-----------|
+| 2.0.x   | Yes       |
 | 1.0.x   | Yes       |
 
 ## Reporting a Vulnerability
@@ -35,8 +36,8 @@ PESUmate is a client-side Chrome extension. Important notes:
 - **No external requests**: All network requests go exclusively to `pesuacademy.com` using your existing session
 - **No background processes**: The extension only runs when you're on a PESU Academy page
 - **Session cookies**: The extension uses your browser's existing session cookies — it does not read, store, or expose them
-- **Local processing**: PDF merging and ZIP creation happen entirely in the browser
-- **Bundled libraries**: pdf-lib and JSZip are bundled locally — no CDN or third-party script loading at runtime
+- **Local processing**: PDF merging, ZIP creation, and PPTX rendering happen entirely inside the browser
+- **Bundled libraries**: pdf-lib, JSZip, and pptx-to-html are bundled locally — no CDN or third-party script loading at runtime
 
 ## Permissions
 
@@ -45,5 +46,6 @@ The extension requests minimal permissions:
 | Permission | Reason |
 |-----------|--------|
 | `host_permissions: pesuacademy.com` | Required to inject the content script and access course APIs |
+| `storage` | Required to securely store user-provided Gemini API keys and local chat history |
 
-No other permissions (storage, tabs, webRequest, etc.) are requested.
+No other permissions (tabs, webRequest, etc.) are requested.

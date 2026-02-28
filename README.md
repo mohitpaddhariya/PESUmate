@@ -6,11 +6,13 @@ A Chrome extension that adds bulk slide downloading and an AI-powered study assi
 
 - **PESUmate tab** — appears alongside your course unit tabs
 - **✨ PESUmate AI Chat** — Select slides and chat with an AI study assistant that understands your course material.
+  - **Native Preview Panel**: View loaded PDFs and PPTXs visually while you chat.
+  - **Auto-highlight**: The AI automatically highlights the exact slide it is referencing in the context panel.
+  - **Chat History**: Your conversations are saved locally so you can resume them later.
 - **PDF merge** — all PDF slides combined into a single file via pdf-lib
 - **PPTX ZIP** — PowerPoint files bundled into one ZIP via JSZip
 - **Individual downloads** — click any file to download it separately
 - **Auto-detect** — panel updates automatically when you switch unit tabs
-- **Progress tracking** — visual progress bar while scanning and downloading
 
 ## Installation
 
@@ -38,8 +40,10 @@ A Chrome extension that adds bulk slide downloading and an AI-powered study assi
 3. Navigate to **My Courses → [Your Subject] → Course Units**
 4. Click the **PESUmate** tab that appears at the end of the unit tabs.
 5. Provide checkboxes next to slides in the modal. Check the ones you want to study.
-6. Click **Chat with Selected** to open the AI sidebar and ask questions based on those exact slides!
-7. Or click **Merge & Download** to download them.
+6. Click **Chat with Selected** to open the AI sidebar.
+7. Click the **Slides** button or the 👁 icon to view the presentation visually while you ask questions.
+8. Access past sessions anytime using the **History** button.
+9. Or click **Merge & Download** to download them directly.
 
 ## Project structure
 
@@ -88,3 +92,4 @@ This project is licensed under the [MIT License](LICENSE). See [CONTRIBUTING](do
 
 - [pdf-lib](https://pdf-lib.js.org/) by Andrew Dillon
 - [JSZip](https://stuk.github.io/jszip/) by Stuart Knightley
+- [@jvmr/pptx-to-html](https://github.com/meshesha/pptxjs) by jvmr (used for slide previews)
