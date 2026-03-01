@@ -6,8 +6,10 @@ A Chrome extension that adds bulk slide downloading and an AI-powered study assi
 
 - **PESUmate tab** — appears alongside your course unit tabs
 - **✨ PESUmate AI Chat** — Select slides and chat with an AI study assistant that understands your course material.
-  - **Native Preview Panel**: View loaded PDFs and PPTXs visually while you chat.
-  - **Auto-highlight**: The AI automatically highlights the exact slide it is referencing in the context panel.
+  - **Inline Focus Mode**: View loaded PDFs and PPTXs right inside the sidebar with a draggable split view.
+  - **Fullscreen Study Mode**: Go fullscreen for an immersive side-by-side layout — slides on the left, resizable chat drawer on the right.
+  - **Auto-scroll to Source**: During streaming, the AI automatically scrolls to the referenced slide page and shows clickable source pills.
+  - **Add Slides Anytime**: Open a centered modal picker to add more slides to context mid-conversation.
   - **Chat History**: Your conversations are saved locally so you can resume them later.
 - **PDF merge** — all PDF slides combined into a single file via pdf-lib
 - **PPTX ZIP** — PowerPoint files bundled into one ZIP via JSZip
@@ -39,11 +41,12 @@ A Chrome extension that adds bulk slide downloading and an AI-powered study assi
 2. **Retrieve API Key:** Click the PESUmate extension icon in your toolbar, and paste your Gemini API key.
 3. Navigate to **My Courses → [Your Subject] → Course Units**
 4. Click the **PESUmate** tab that appears at the end of the unit tabs.
-5. Provide checkboxes next to slides in the modal. Check the ones you want to study.
-6. Click **Chat with Selected** to open the AI sidebar.
-7. Click the **Slides** button or the 👁 icon to view the presentation visually while you ask questions.
-8. Access past sessions anytime using the **History** button.
-9. Or click **Merge & Download** to download them directly.
+5. Check the slides you want to study, then click **Chat with Selected** to open the AI sidebar.
+6. Click the **Slides** button to open inline preview, or **⛶** to enter fullscreen study mode.
+7. In fullscreen, use the right-side chat drawer — resize it, collapse it, or click **+ Slides** to add more slides.
+8. Source pills appear during AI responses — click them to jump to the referenced page.
+9. Access past sessions anytime using the **History** button.
+10. Or click **Merge & Download** to download slides directly.
 
 ## Project structure
 

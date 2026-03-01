@@ -89,3 +89,27 @@ A `TextDecoder` stream reader captures chunks of raw bytes as they arrive from G
 
 ### Chat History Management
 Conversations are saved to `chrome.storage.local` indexed by the specific course unit (e.g., `chat_Unit 1`). This allows players to hop between different course units and resume contextual conversations exactly where they left off. The saving triggers autonomously after every completed stream generation.
+
+### Fullscreen Study Mode
+When the user clicks the fullscreen button (⛶), the sidebar expands to fill the entire viewport. The chat messages, typing indicator, and input area are moved into a **Chat Drawer** — a fixed right-side panel that slides in/out. The inline preview fills the remaining space with `marginRight` tracking the drawer width.
+
+Key functions:
+- `enterFullscreen()` — adds `.pesu-fullscreen` class, creates the drawer with resize handle + header (+ Slides, History, Clear, Collapse), creates FAB
+- `exitFullscreen()` — unwraps drawer children back into the sidebar, removes FAB, restores previous width
+- `toggleChatDrawer()` — collapses/expands the drawer with CSS `translateX` animation, toggles FAB visibility
+- `initDrawerResize()` — enables drag-to-resize on the drawer’s left edge (min 280px, max 600px)
+
+### Inline Focus Mode (Split View)
+The inline preview renders slides directly inside the sidebar using a vertical split layout. A draggable splitter lets the user adjust the ratio between preview and chat. The split ratio is persisted to `localStorage`.
+
+PDF pages are rendered at retina resolution using `Math.max(devicePixelRatio, 2)` in fullscreen mode. PPTX slides use `aspect-ratio: 4/3` CSS for consistent scaling across all widths. `getInlineRenderWidth()` computes the correct canvas width from viewport and drawer dimensions.
+
+### Auto-scroll & Source Attribution
+During AI streaming, `detectPageDuringStream()` runs with a 600ms debounce to identify which slide page the AI is referencing. It calls `findReferencedPage()` which uses word-overlap scoring (threshold: 1.5) against `slidePageTexts` to find the best match.
+
+When a match is found:
+1. `autoScrollToPage()` switches the active tab and smooth-scrolls to the target page with a highlight animation
+2. `addSourcePill()` inserts a clickable pill (e.g., "▶ Page 5 · Cloud Computing") before the AI bubble
+
+### Slide Picker Modal
+The `addMoreSlides()` function creates a centered modal overlay (`pesu-slide-picker-overlay`) with backdrop blur. It lists all available slides with checkboxes, showing "In context" badges for already-selected items. Works identically in both sidebar and fullscreen modes.

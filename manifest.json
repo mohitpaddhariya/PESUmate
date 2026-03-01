@@ -60,7 +60,8 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "lib/*"
+        "lib/*",
+        "icon.png"
       ],
       "matches": [
         "https://www.pesuacademy.com/*"

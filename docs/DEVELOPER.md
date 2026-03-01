@@ -42,10 +42,10 @@ Page load → manifest injects scripts at document_idle
 | `manifest.json` | Extension manifest (MV3). Declares content scripts, permissions, icons, popup. |
 | `src/scripts/background.js` | Service worker managing Gemini API key storage and raw API fetch logic. |
 | `src/scripts/content.js` | Core logic: DOM injection, API calls, PDF merge, PPTX zip, caching, tab observer. |
-| `src/scripts/chat.js` | UI logic for the AI chat sidebar, text extraction parsing from PDF/PPTX, and Markdown rendering. |
+| `src/scripts/chat.js` | UI logic for the AI chat sidebar, fullscreen study mode, inline slide preview, chat drawer, text extraction from PDF/PPTX, auto-scroll source attribution, and Markdown rendering. |
 | `src/scripts/prompt.js` | Stores the system instructions string to be read by the AI endpoint. |
 | `src/styles/panel.css` | All styling for the download panel. |
-| `src/styles/chat.css` | All styling for the AI chat panel and slide selection modal. |
+| `src/styles/chat.css` | All styling for the AI chat sidebar, fullscreen mode, chat drawer, slide picker modal, FAB, and inline preview. |
 | `src/pages/popup.html` | Toolbar popup. Collects Gemini API key and links to creator documentation. |
 | `lib/pdf-lib.min.js` | pdf-lib v1.17.1 — client-side PDF creation and merging. |
 | `lib/jszip.min.js` | JSZip v3.10.1 — client-side ZIP file generation. |
@@ -227,8 +227,11 @@ The extension uses:
 | `cache` | Closure | Download items cache per unit |
 | `_fetching` | Closure | Lock flag — prevents concurrent fetches |
 | `_lastRenderedTab` | Closure | Tracks which tab the panel was last rendered for |
-| `_lastActiveTab` | Closure | Last active tab text for observer change detection |
-
+| `_lastActiveTab` | Closure | Last active tab text for observer change detection || `fullscreenMode` | Closure (chat.js) | Whether the fullscreen study mode is active |
+| `inlinePreviewOpen` | Closure (chat.js) | Whether the inline slide preview is visible |
+| `splitRatio` | Closure (chat.js) | Persisted split ratio between preview and chat (localStorage) |
+| `slidePageTexts` | Closure (chat.js) | Per-page extracted text map for source attribution |
+| `slideBuffers` | Closure (chat.js) | Cached ArrayBuffers for slide preview rendering |
 ---
 
 ## Development setup

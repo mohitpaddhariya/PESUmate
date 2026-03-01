@@ -234,26 +234,55 @@ body.pesu-chat-open {
   border-color: #0091CD;
 }
 
-/* ─── Inline Slide Picker ─── */
+/* ─── Slide Picker Modal Overlay ─── */
+.pesu-slide-picker-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(4px);
+  z-index: 200000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: pesu-overlay-in 0.15s ease-out;
+}
+
+@keyframes pesu-overlay-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+/* ─── Slide Picker Card ─── */
 .pesu-slide-picker {
   background: #fff;
-  border-bottom: 1px solid #e5edf3;
-  flex-shrink: 0;
-  max-height: 50vh;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.25), 0 4px 16px rgba(0, 0, 0, 0.1);
+  width: 90vw;
+  max-width: 480px;
+  max-height: 70vh;
   display: flex;
   flex-direction: column;
-  animation: pesu-picker-in 0.15s ease-out;
+  overflow: hidden;
+  animation: pesu-picker-in 0.2s ease-out;
 }
 
 @keyframes pesu-picker-in {
   from {
     opacity: 0;
-    transform: translateY(-8px);
+    transform: translateY(-12px) scale(0.97);
   }
 
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
   }
 }
 
@@ -261,10 +290,10 @@ body.pesu-chat-open {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 16px;
+  padding: 14px 20px;
   background: #1d3756;
   color: #fff;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   flex-shrink: 0;
 }
@@ -307,11 +336,11 @@ body.pesu-chat-open {
 .pesu-slide-picker-row {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 16px;
+  gap: 12px;
+  padding: 10px 20px;
   cursor: pointer;
   transition: background 0.12s;
-  font-size: 12px;
+  font-size: 13px;
   color: #374151;
   border-bottom: 1px solid #f3f6f9;
 }
@@ -354,8 +383,8 @@ body.pesu-chat-open {
 
 .pesu-slide-picker-footer {
   display: flex;
-  gap: 8px;
-  padding: 10px 16px;
+  gap: 10px;
+  padding: 12px 20px;
   border-top: 1px solid #e5edf3;
   background: #f8fafc;
   flex-shrink: 0;
@@ -363,12 +392,12 @@ body.pesu-chat-open {
 
 .pesu-slide-picker-cancel {
   flex: 1;
-  padding: 8px;
+  padding: 10px;
   border: 1px solid #d5dde5;
-  border-radius: 6px;
+  border-radius: 8px;
   background: #fff;
   color: #374151;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.15s;
@@ -380,12 +409,12 @@ body.pesu-chat-open {
 
 .pesu-slide-picker-add {
   flex: 1;
-  padding: 8px;
+  padding: 10px;
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   background: #0091CD;
   color: #fff;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.15s;
@@ -1245,5 +1274,527 @@ body.pesu-chat-open {
   100% {
     background: #dbeafe;
     box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════
+   Inline Slide Preview (Focus Mode — DnD split view)
+   ═══════════════════════════════════════════════════════ */
+
+.pesu-chat-inline-preview {
+  display: none;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 120px;
+  background: #f8fafc;
+  border-bottom: none;
+}
+
+/* Tab bar */
+.pesu-inline-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 6px 10px;
+  background: #f0f7fc;
+  border-bottom: 1px solid #e5edf3;
+  overflow-x: auto;
+  flex-shrink: 0;
+  scrollbar-width: thin;
+}
+
+.pesu-inline-tabs::-webkit-scrollbar {
+  height: 3px;
+}
+
+.pesu-inline-tabs::-webkit-scrollbar-thumb {
+  background: #d5dde5;
+  border-radius: 3px;
+}
+
+.pesu-inline-tab {
+  padding: 4px 10px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: none;
+  font-size: 11px;
+  font-weight: 500;
+  color: #7a8fa3;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+.pesu-inline-tab:hover {
+  background: #e0f0fa;
+  color: #1d3756;
+}
+
+.pesu-inline-tab.active {
+  background: #0091CD;
+  color: #fff;
+  border-color: #0091CD;
+}
+
+/* Content area */
+.pesu-inline-content {
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 10px;
+  flex: 1;
+  min-height: 0;
+}
+
+.pesu-inline-content::-webkit-scrollbar {
+  width: 4px;
+}
+
+.pesu-inline-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.pesu-inline-content::-webkit-scrollbar-thumb {
+  background: #d5dde5;
+  border-radius: 4px;
+}
+
+.pesu-inline-empty {
+  padding: 24px 16px;
+  text-align: center;
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+/* ─── DnD Splitter (horizontal resize handle) ─── */
+.pesu-chat-splitter {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  height: 10px;
+  cursor: row-resize;
+  background: #e5edf3;
+  flex-shrink: 0;
+  transition: background 0.15s;
+  position: relative;
+  z-index: 5;
+  user-select: none;
+}
+
+.pesu-chat-splitter:hover,
+.pesu-chat-splitter.active {
+  background: #c7dae8;
+}
+
+.pesu-chat-splitter-handle {
+  width: 36px;
+  height: 3px;
+  background: #b0c4d4;
+  border-radius: 2px;
+  transition: background 0.15s;
+}
+
+.pesu-chat-splitter:hover .pesu-chat-splitter-handle,
+.pesu-chat-splitter.active .pesu-chat-splitter-handle {
+  background: #0091CD;
+}
+
+/* ─── Page Auto-Scroll Highlight ─── */
+.pesu-page-auto-highlight {
+  animation: pesu-page-highlight 2.5s ease-out;
+  outline: 2px solid #0091CD;
+  outline-offset: -2px;
+  border-radius: 6px;
+}
+
+@keyframes pesu-page-highlight {
+  0% {
+    outline-color: #0091CD;
+    box-shadow: 0 0 0 0 rgba(0, 145, 205, 0.35);
+  }
+
+  20% {
+    outline-color: #0091CD;
+    box-shadow: 0 0 12px 4px rgba(0, 145, 205, 0.18);
+  }
+
+  100% {
+    outline-color: transparent;
+    box-shadow: 0 0 0 0 rgba(0, 145, 205, 0);
+  }
+}
+
+/* ─── Source Indicator Pill (above AI message bubble) ─── */
+.pesu-source-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  margin-bottom: 6px;
+  background: #eaf4fb;
+  border: 1px solid #c7e0f0;
+  border-radius: 14px;
+  font-size: 10px;
+  color: #1d3756;
+  cursor: pointer;
+  transition: all 0.15s;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.pesu-source-pill:hover {
+  background: #d6ecf8;
+  border-color: #93c9e6;
+  box-shadow: 0 1px 4px rgba(0, 145, 205, 0.12);
+}
+
+.pesu-source-icon {
+  color: #0091CD;
+  font-size: 8px;
+  flex-shrink: 0;
+}
+
+.pesu-source-pill strong {
+  color: #0091CD;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.pesu-source-title {
+  color: #7a8fa3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ═══════════════════════════════════════════════════════
+   Fullscreen Mode — Slides + Chat Drawer (side-by-side)
+   ═══════════════════════════════════════════════════════ */
+
+/* Body state */
+body.pesu-fullscreen-active {
+  overflow: hidden !important;
+  margin-right: 0 !important;
+}
+
+/* Sidebar becomes a full-viewport overlay with horizontal flex layout */
+.pesu-chat-sidebar.pesu-fullscreen {
+  width: 100vw !important;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 100vh;
+  border-left: none;
+  box-shadow: none;
+  z-index: 100000;
+  background: #f0f4f8;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header: slim top bar — hide unnecessary buttons in fullscreen */
+.pesu-fullscreen .pesu-chat-header {
+  padding: 8px 20px;
+  flex-shrink: 0;
+}
+
+.pesu-fullscreen .pesu-chat-header .close-btn {
+  display: none;
+}
+
+.pesu-fullscreen .pesu-chat-header .actions button {
+  display: none;
+}
+
+.pesu-fullscreen .pesu-chat-header .actions #pesu-chat-fullscreen-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Context hidden */
+.pesu-fullscreen .pesu-chat-context {
+  display: none;
+}
+
+/* Extract progress hidden */
+.pesu-fullscreen .pesu-chat-extract-progress {
+  display: none !important;
+}
+
+/* Main area: preview + drawer side by side */
+.pesu-fullscreen .pesu-chat-inline-preview {
+  flex: 1 !important;
+  height: auto !important;
+  border-bottom: none;
+  background: #f0f4f8;
+  min-width: 0;
+}
+
+/* Splitter hidden */
+.pesu-fullscreen .pesu-chat-splitter {
+  display: none !important;
+}
+
+/* Drag handle hidden */
+.pesu-fullscreen .pesu-chat-drag-handle {
+  display: none;
+}
+
+/* ─── Slide content in fullscreen ─── */
+
+.pesu-fullscreen .pesu-inline-content {
+  padding: 24px 32px;
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.pesu-fullscreen .pesu-inline-tabs {
+  justify-content: center;
+  padding: 8px 20px;
+  background: #e8f0f7;
+}
+
+.pesu-fullscreen .pesu-preview-page {
+  margin-bottom: 24px;
+  border-radius: 10px;
+  box-shadow: 0 2px 16px rgba(29, 55, 86, 0.1);
+}
+
+.pesu-fullscreen .pesu-preview-pptx-wrapper {
+  margin-bottom: 24px;
+  border-radius: 10px;
+  box-shadow: 0 2px 16px rgba(29, 55, 86, 0.1);
+}
+
+.pesu-fullscreen .pesu-preview-pptx-canvas {
+  overflow: hidden;
+}
+
+.pesu-fullscreen .pesu-preview-pptx-canvas > div {
+  transform-origin: top left;
+}
+
+.pesu-fullscreen .pesu-preview-page-label {
+  font-size: 12px;
+  padding: 10px 16px;
+  font-weight: 700;
+}
+
+.pesu-fullscreen .pesu-preview-page-count {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 8px 0 16px;
+}
+
+/* ═══════════════════════════════════════════════════════
+   Chat Drawer — right sidebar in fullscreen
+   ═══════════════════════════════════════════════════════ */
+
+.pesu-chat-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 380px;
+  height: 100vh;
+  background: #ffffff;
+  border-left: 1px solid #d5dde5;
+  box-shadow: -4px 0 24px rgba(29, 55, 86, 0.08);
+  z-index: 100002;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s ease;
+}
+
+.pesu-chat-drawer.collapsed {
+  transform: translateX(100%);
+  box-shadow: none;
+}
+
+/* Resize handle on left edge */
+.pesu-chat-drawer-resize {
+  position: absolute;
+  top: 0;
+  left: -4px;
+  width: 8px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 10;
+  transition: background 0.15s;
+}
+
+.pesu-chat-drawer-resize:hover,
+.pesu-chat-drawer-resize.active {
+  background: rgba(0, 145, 205, 0.25);
+}
+
+/* Drawer header */
+.pesu-chat-drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  background: linear-gradient(135deg, #0091CD, #006fa1);
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.pesu-chat-drawer-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 0.3px;
+}
+
+.pesu-chat-drawer-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pesu-chat-drawer-btn {
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #fff;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pesu-chat-drawer-btn:hover {
+  background: rgba(255, 255, 255, 0.32);
+}
+
+.pesu-chat-drawer-collapse {
+  padding: 4px 6px;
+}
+
+.pesu-chat-drawer-collapse svg {
+  display: block;
+}
+
+/* Drawer children — reset */
+.pesu-chat-drawer .pesu-chat-messages {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  position: static;
+  width: auto;
+  max-height: none;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 14px;
+}
+
+.pesu-chat-drawer .pesu-chat-typing {
+  position: static;
+  width: auto;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  border-top: 1px solid #eef2f6;
+  padding: 8px 14px;
+}
+
+.pesu-chat-drawer .pesu-chat-input-area {
+  position: static;
+  width: auto;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  border-top: 1px solid #e5edf3;
+  padding: 10px 12px;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* Welcome & suggestions in drawer — tighter */
+.pesu-chat-drawer .pesu-chat-welcome {
+  padding: 20px 14px 14px;
+}
+
+.pesu-chat-drawer .pesu-chat-welcome h3 {
+  font-size: 15px;
+}
+
+.pesu-chat-drawer .pesu-chat-welcome .subtitle {
+  font-size: 12px;
+}
+
+/* ─── FAB (reopen drawer when collapsed) ─── */
+
+.pesu-chat-fab {
+  position: fixed;
+  bottom: 28px;
+  right: 28px;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0091CD, #006fa1);
+  color: #fff;
+  border: none;
+  box-shadow: 0 4px 20px rgba(0, 145, 205, 0.4), 0 2px 6px rgba(0, 0, 0, 0.12);
+  cursor: pointer;
+  z-index: 100001;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.7);
+  transition: opacity 0.2s ease, transform 0.2s ease, box-shadow 0.15s ease;
+}
+
+.pesu-chat-fab.visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: scale(1);
+}
+
+.pesu-chat-fab:hover {
+  box-shadow: 0 6px 28px rgba(0, 145, 205, 0.5), 0 2px 8px rgba(0, 0, 0, 0.15);
+  transform: scale(1.08);
+}
+
+.pesu-chat-fab:active {
+  transform: scale(0.96);
+}
+
+/* Fullscreen button active state */
+#pesu-chat-fullscreen-btn.active {
+  background: rgba(220, 38, 38, 0.25);
+  color: #fff;
+  border-color: rgba(220, 38, 38, 0.5);
+}
+
+/* Panels above drawer */
+.pesu-fullscreen .pesu-slide-picker-overlay {
+  z-index: 200000;
+}
+
+.pesu-fullscreen .pesu-chat-history-panel {
+  z-index: 100005;
+}
+
+/* Responsive: smaller screens */
+@media (max-width: 900px) {
+  .pesu-chat-drawer {
+    width: 320px;
+  }
+
+  .pesu-chat-fab {
+    right: 16px;
+    bottom: 16px;
+  }
+
+  .pesu-fullscreen .pesu-inline-content {
+    padding: 14px 16px;
   }
 }

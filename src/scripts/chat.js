@@ -11,6 +11,10 @@
     var MAX_WIDTH = 800;
     var PREVIEW_WIDTH = 480;
     var previewOpen = false;
+    var FOCUS_WIDTH = 680;
+    var inlinePreviewOpen = false;
+    var splitRatio = parseFloat(localStorage.getItem('pesumate_split_ratio')) || 0.45;
+    var fullscreenMode = false;
 
     // ─── Bridge ───
     var _msgId = 0, _pending = {};
@@ -43,6 +47,8 @@
     var sidebarWidth = parseInt(localStorage.getItem('pesumate_sidebar_w')) || DEFAULT_WIDTH;
     var slideTexts = {}; // { title: extractedText }
     var slideBuffers = {}; // { title: { buf, isPdf, isZip } }
+    var slidePageTexts = {}; // { title: ['page1text', 'page2text', ...] } for per-page matching
+    var _lastScrolledPage = null; // track last auto-scrolled target to avoid repeat scrolls
 
     // ─── Persistent History ───
     function saveHistory(unit) {
@@ -119,6 +125,7 @@
             '<button class="close-btn" id="pesu-chat-close" title="Close">&times;</button>' +
             '<div class="title">PESUmate AI <span class="creator">by Mohit Paddhariya</span></div>' +
             '<div class="actions">' +
+            '<button id="pesu-chat-fullscreen-btn" title="Fullscreen slides">&#x26F6;</button>' +
             '<button id="pesu-chat-slides-btn" title="Toggle slide preview">Slides</button>' +
             '<button id="pesu-chat-history-btn">History</button>' +
             '<button id="pesu-chat-clear-btn">Clear</button>' +
@@ -138,6 +145,20 @@
         extract.id = 'pesu-chat-extract';
         extract.style.display = 'none';
         sidebar.appendChild(extract);
+
+        // Inline Preview (Focus Mode — slides rendered inside sidebar)
+        var inlinePreview = document.createElement('div');
+        inlinePreview.className = 'pesu-chat-inline-preview';
+        inlinePreview.id = 'pesu-chat-inline-preview';
+        sidebar.appendChild(inlinePreview);
+
+        // DnD Splitter between preview and chat
+        var splitterEl = document.createElement('div');
+        splitterEl.className = 'pesu-chat-splitter';
+        splitterEl.id = 'pesu-chat-splitter';
+        splitterEl.innerHTML = '<div class="pesu-chat-splitter-handle"></div>';
+        sidebar.appendChild(splitterEl);
+        initSplitterDrag(splitterEl);
 
         // Messages
         var msgs = document.createElement('div');
@@ -172,7 +193,8 @@
         document.getElementById('pesu-chat-clear-btn').onclick = clearChat;
         document.getElementById('pesu-chat-send-btn').onclick = sendMessage;
         document.getElementById('pesu-chat-history-btn').onclick = toggleHistory;
-        document.getElementById('pesu-chat-slides-btn').onclick = togglePreviewPanel;
+        document.getElementById('pesu-chat-slides-btn').onclick = toggleInlinePreview;
+        document.getElementById('pesu-chat-fullscreen-btn').onclick = toggleFullscreen;
 
         var input = document.getElementById('pesu-chat-input');
         input.onkeydown = function (e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } };
@@ -257,6 +279,8 @@
         saveHistory(unitTab());
         sidebarOpen = false;
         previewOpen = false;
+        inlinePreviewOpen = false;
+        if (fullscreenMode) exitFullscreen();
         var sb = document.getElementById('pesu-chat-sidebar');
         if (sb) {
             sb.style.animation = 'none';
@@ -416,7 +440,13 @@
                 btn.onclick = function (e) {
                     e.stopPropagation();
                     var idx = parseInt(btn.dataset.idx);
-                    if (selectedItems[idx]) openPreview(selectedItems[idx].title);
+                    if (selectedItems[idx]) {
+                        if (inlinePreviewOpen) {
+                            renderInlineSlides(selectedItems[idx].title);
+                        } else {
+                            openInlinePreview(selectedItems[idx].title);
+                        }
+                    }
                 };
             });
 
@@ -430,6 +460,7 @@
         var removed = selectedItems.splice(idx, 1)[0];
         delete slideTexts[removed.title];
         delete slideBuffers[removed.title];
+        delete slidePageTexts[removed.title];
         rebuildContext();
         renderContextBanner();
 
@@ -470,6 +501,514 @@
         // Update Slides button state
         var btn = document.getElementById('pesu-chat-slides-btn');
         if (btn) btn.classList.remove('active');
+    }
+
+    // ─── Inline Preview (Focus Mode — slides + chat unified in sidebar) ───
+    function toggleInlinePreview() {
+        if (inlinePreviewOpen) {
+            closeInlinePreview();
+        } else {
+            var first = selectedItems.find(function (it) { return !!slideBuffers[it.title]; });
+            if (first) openInlinePreview(first.title);
+        }
+    }
+
+    function openInlinePreview(activeTitle) {
+        var preview = document.getElementById('pesu-chat-inline-preview');
+        var splitter = document.getElementById('pesu-chat-splitter');
+        if (!preview || !splitter) return;
+
+        // Close old side panel if open
+        if (previewOpen) closePreviewPanel();
+
+        inlinePreviewOpen = true;
+        preview.style.display = 'flex';
+        splitter.style.display = 'flex';
+
+        // Widen sidebar for focus mode
+        var sidebar = document.getElementById('pesu-chat-sidebar');
+        if (sidebar && sidebarWidth < FOCUS_WIDTH) {
+            sidebarWidth = FOCUS_WIDTH;
+            sidebar.style.width = sidebarWidth + 'px';
+            localStorage.setItem('pesumate_sidebar_w', sidebarWidth);
+        }
+        updateBodyMargin();
+        applySplitRatio();
+
+        // Update button state
+        var btn = document.getElementById('pesu-chat-slides-btn');
+        if (btn) { btn.classList.add('active'); btn.textContent = 'Slides \u2715'; }
+
+        // Render slides
+        if (activeTitle) renderInlineSlides(activeTitle);
+    }
+
+    function closeInlinePreview() {
+        inlinePreviewOpen = false;
+        // If in fullscreen, exit fullscreen too
+        if (fullscreenMode) { exitFullscreen(); return; }
+        var preview = document.getElementById('pesu-chat-inline-preview');
+        var splitter = document.getElementById('pesu-chat-splitter');
+        if (preview) { preview.style.display = 'none'; preview.style.height = ''; preview.style.flex = ''; }
+        if (splitter) splitter.style.display = 'none';
+
+        // Restore sidebar width
+        var sidebar = document.getElementById('pesu-chat-sidebar');
+        if (sidebar) {
+            sidebarWidth = DEFAULT_WIDTH;
+            sidebar.style.width = sidebarWidth + 'px';
+            localStorage.setItem('pesumate_sidebar_w', sidebarWidth);
+        }
+        updateBodyMargin();
+
+        // Reset messages flex
+        var msgs = document.getElementById('pesu-chat-messages');
+        if (msgs) { msgs.style.flex = ''; msgs.style.height = ''; }
+
+        // Update button state
+        var btn = document.getElementById('pesu-chat-slides-btn');
+        if (btn) { btn.classList.remove('active'); btn.textContent = 'Slides'; }
+    }
+
+    // ─── Fullscreen Mode (slides fullpage + floating chat popup) ───
+    function toggleFullscreen() {
+        if (fullscreenMode) {
+            exitFullscreen();
+        } else {
+            enterFullscreen();
+        }
+    }
+
+    function enterFullscreen() {
+        // Ensure inline preview is open first
+        if (!inlinePreviewOpen) {
+            var first = selectedItems.find(function (it) { return !!slideBuffers[it.title]; });
+            if (!first) return; // no slides to show
+            openInlinePreview(first.title);
+        }
+
+        fullscreenMode = true;
+        var sidebar = document.getElementById('pesu-chat-sidebar');
+        if (!sidebar) return;
+
+        // Save pre-fullscreen width
+        sidebar.dataset.prefsWidth = sidebarWidth;
+
+        // Add fullscreen class to sidebar — CSS handles the layout
+        sidebar.classList.add('pesu-fullscreen');
+        document.body.classList.add('pesu-fullscreen-active');
+        document.body.style.marginRight = '0px';
+
+        // Hide splitter in fullscreen
+        var splitter = document.getElementById('pesu-chat-splitter');
+        if (splitter) splitter.style.display = 'none';
+
+        // Make inline preview expand fully and leave room for drawer
+        var preview = document.getElementById('pesu-chat-inline-preview');
+        if (preview) {
+            preview.style.flex = '1';
+            preview.style.height = '';
+            preview.style.marginRight = '380px';
+        }
+
+        // Create right-side chat drawer (replaces old float popup)
+        var msgsEl = document.getElementById('pesu-chat-messages');
+        var typingEl = document.getElementById('pesu-chat-typing');
+        var inputEl = sidebar.querySelector('.pesu-chat-input-area');
+        if (msgsEl && typingEl && inputEl) {
+            var chatDrawer = document.createElement('div');
+            chatDrawer.className = 'pesu-chat-drawer';
+            chatDrawer.id = 'pesu-chat-drawer';
+            chatDrawer.style.width = '380px';
+
+            // Resize handle on left edge
+            var resizeHandle = document.createElement('div');
+            resizeHandle.className = 'pesu-chat-drawer-resize';
+            chatDrawer.appendChild(resizeHandle);
+            initDrawerResize(resizeHandle, chatDrawer);
+
+            // Drawer header with title + actions (add slides, history, clear, collapse)
+            var drawerHeader = document.createElement('div');
+            drawerHeader.className = 'pesu-chat-drawer-header';
+            drawerHeader.innerHTML =
+                '<span class="pesu-chat-drawer-title">Chat</span>' +
+                '<div class="pesu-chat-drawer-actions">' +
+                '<button class="pesu-chat-drawer-btn" id="pesu-fs-add-slides" title="Add slides to context">+ Slides</button>' +
+                '<button class="pesu-chat-drawer-btn" id="pesu-fs-history" title="Chat history">History</button>' +
+                '<button class="pesu-chat-drawer-btn" id="pesu-fs-clear" title="Clear chat">Clear</button>' +
+                '<button class="pesu-chat-drawer-btn pesu-chat-drawer-collapse" id="pesu-chat-drawer-collapse" title="Collapse chat">' +
+                '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>' +
+                '</button>' +
+                '</div>';
+            chatDrawer.appendChild(drawerHeader);
+
+            chatDrawer.appendChild(msgsEl);
+            chatDrawer.appendChild(typingEl);
+            chatDrawer.appendChild(inputEl);
+            sidebar.appendChild(chatDrawer);
+
+            // Wire drawer buttons
+            document.getElementById('pesu-chat-drawer-collapse').onclick = toggleChatDrawer;
+            document.getElementById('pesu-fs-add-slides').onclick = addMoreSlides;
+            document.getElementById('pesu-fs-history').onclick = toggleHistory;
+            document.getElementById('pesu-fs-clear').onclick = clearChat;
+
+            // FAB to reopen chat when collapsed (hidden initially)
+            var fab = document.createElement('button');
+            fab.className = 'pesu-chat-fab';
+            fab.id = 'pesu-chat-fab';
+            fab.title = 'Open chat';
+            var fabIcon = document.createElement('img');
+            var extMeta = document.querySelector('meta[name="pesumate-extension-url"]');
+            var extBase = extMeta ? extMeta.content : '';
+            fabIcon.src = extBase + 'icon.png';
+            fabIcon.width = 36;
+            fabIcon.height = 36;
+            fabIcon.style.borderRadius = '50%';
+            fab.appendChild(fabIcon);
+            fab.onclick = toggleChatDrawer;
+            sidebar.appendChild(fab);
+        }
+
+        // Update button states
+        var fsBtn = document.getElementById('pesu-chat-fullscreen-btn');
+        if (fsBtn) { fsBtn.classList.add('active'); fsBtn.innerHTML = '&#x2716;'; fsBtn.title = 'Exit fullscreen'; }
+
+        // Re-render slides at full width — use rAF to guarantee CSS reflow
+        var activeTab = document.querySelector('.pesu-inline-tab.active');
+        if (activeTab) {
+            requestAnimationFrame(function () {
+                requestAnimationFrame(function () {
+                    var content = document.getElementById('pesu-inline-content');
+                    if (content && activeTab.dataset.title) {
+                        renderInlineContent(activeTab.dataset.title, content);
+                    }
+                });
+            });
+        }
+
+        // Listen for Esc key
+        document.addEventListener('keydown', _fullscreenEscHandler);
+    }
+
+    function exitFullscreen() {
+        fullscreenMode = false;
+        var sidebar = document.getElementById('pesu-chat-sidebar');
+        if (!sidebar) return;
+
+        sidebar.classList.remove('pesu-fullscreen');
+        document.body.classList.remove('pesu-fullscreen-active');
+
+        // Unwrap chat drawer — move children back into sidebar (skip drawer header)
+        var chatDrawer = document.getElementById('pesu-chat-drawer');
+        if (chatDrawer) {
+            var children = Array.from(chatDrawer.children);
+            children.forEach(function (child) {
+                if (!child.classList.contains('pesu-chat-drawer-header')) {
+                    sidebar.insertBefore(child, chatDrawer);
+                }
+            });
+            chatDrawer.remove();
+        }
+        // Remove FAB
+        var fab = document.getElementById('pesu-chat-fab');
+        if (fab) fab.remove();
+
+        // Clear preview margin
+        var preview = document.getElementById('pesu-chat-inline-preview');
+        if (preview) preview.style.marginRight = '';
+
+        // Restore previous width
+        var prevW = parseInt(sidebar.dataset.prefsWidth) || FOCUS_WIDTH;
+        sidebarWidth = prevW;
+        sidebar.style.width = prevW + 'px';
+        updateBodyMargin();
+
+        // Restore splitter
+        var splitter = document.getElementById('pesu-chat-splitter');
+        if (splitter && inlinePreviewOpen) splitter.style.display = 'flex';
+
+        // Restore inline preview height
+        applySplitRatio();
+
+        // Update button states
+        var fsBtn = document.getElementById('pesu-chat-fullscreen-btn');
+        if (fsBtn) { fsBtn.classList.remove('active'); fsBtn.innerHTML = '&#x26F6;'; fsBtn.title = 'Fullscreen slides'; }
+
+        // Re-render slides at sidebar width — use rAF to guarantee reflow
+        var activeTab = document.querySelector('.pesu-inline-tab.active');
+        if (activeTab) {
+            requestAnimationFrame(function () {
+                requestAnimationFrame(function () {
+                    var content = document.getElementById('pesu-inline-content');
+                    if (content && activeTab.dataset.title) {
+                        renderInlineContent(activeTab.dataset.title, content);
+                    }
+                });
+            });
+        }
+
+        document.removeEventListener('keydown', _fullscreenEscHandler);
+    }
+
+    function toggleChatDrawer() {
+        var drawer = document.getElementById('pesu-chat-drawer');
+        var fab = document.getElementById('pesu-chat-fab');
+        var preview = document.getElementById('pesu-chat-inline-preview');
+        if (!drawer) return;
+        var isCollapsed = drawer.classList.toggle('collapsed');
+        if (fab) {
+            if (isCollapsed) fab.classList.add('visible');
+            else fab.classList.remove('visible');
+        }
+        // Adjust preview margin so slides aren't hidden behind drawer
+        if (preview) {
+            preview.style.marginRight = isCollapsed ? '0' : drawer.style.width;
+        }
+        // Re-render slides to fill new width after drawer collapses/expands
+        requestAnimationFrame(function () {
+            requestAnimationFrame(function () {
+                var content = document.getElementById('pesu-inline-content');
+                var activeTab = document.querySelector('.pesu-inline-tab.active');
+                if (content && activeTab && activeTab.dataset.title) {
+                    renderInlineContent(activeTab.dataset.title, content);
+                }
+            });
+        });
+    }
+
+    function initDrawerResize(handle, drawer) {
+        var dragging = false;
+        var startX, startW;
+
+        handle.addEventListener('mousedown', function (e) {
+            e.preventDefault();
+            dragging = true;
+            startX = e.clientX;
+            startW = drawer.offsetWidth;
+            document.body.style.cursor = 'col-resize';
+            document.body.style.userSelect = 'none';
+            handle.classList.add('active');
+        });
+
+        document.addEventListener('mousemove', function (e) {
+            if (!dragging) return;
+            var delta = startX - e.clientX; // dragging left = wider
+            var newW = Math.max(280, Math.min(600, startW + delta));
+            drawer.style.width = newW + 'px';
+            var preview = document.getElementById('pesu-chat-inline-preview');
+            if (preview) preview.style.marginRight = newW + 'px';
+        });
+
+        document.addEventListener('mouseup', function () {
+            if (!dragging) return;
+            dragging = false;
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+            handle.classList.remove('active');
+            // Re-render slides at new width
+            requestAnimationFrame(function () {
+                requestAnimationFrame(function () {
+                    var content = document.getElementById('pesu-inline-content');
+                    var activeTab = document.querySelector('.pesu-inline-tab.active');
+                    if (content && activeTab && activeTab.dataset.title) {
+                        renderInlineContent(activeTab.dataset.title, content);
+                    }
+                });
+            });
+        });
+    }
+
+    function _fullscreenEscHandler(e) {
+        if (e.key === 'Escape' && fullscreenMode) {
+            e.preventDefault();
+            exitFullscreen();
+        }
+    }
+
+    function applySplitRatio() {
+        var preview = document.getElementById('pesu-chat-inline-preview');
+        if (!preview || !inlinePreviewOpen) return;
+        var vpH = window.innerHeight;
+        var previewH = Math.max(120, Math.min(vpH * 0.65, Math.round(vpH * splitRatio)));
+        preview.style.flex = 'none';
+        preview.style.height = previewH + 'px';
+    }
+
+    function initSplitterDrag(splitterEl) {
+        var dragging = false;
+
+        splitterEl.addEventListener('mousedown', function (e) {
+            e.preventDefault();
+            dragging = true;
+            document.body.style.cursor = 'row-resize';
+            document.body.style.userSelect = 'none';
+            splitterEl.classList.add('active');
+        });
+
+        document.addEventListener('mousemove', function (e) {
+            if (!dragging) return;
+            var preview = document.getElementById('pesu-chat-inline-preview');
+            if (!preview) return;
+            var previewRect = preview.getBoundingClientRect();
+            var newH = e.clientY - previewRect.top;
+            var vpH = window.innerHeight;
+            newH = Math.max(120, Math.min(vpH * 0.7, newH));
+            preview.style.flex = 'none';
+            preview.style.height = newH + 'px';
+            splitRatio = newH / vpH;
+        });
+
+        document.addEventListener('mouseup', function () {
+            if (!dragging) return;
+            dragging = false;
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+            splitterEl.classList.remove('active');
+            localStorage.setItem('pesumate_split_ratio', splitRatio.toFixed(2));
+        });
+    }
+
+    async function renderInlineSlides(activeTitle) {
+        var container = document.getElementById('pesu-chat-inline-preview');
+        if (!container) return;
+        container.innerHTML = '';
+
+        var titlesWithBuf = selectedItems.filter(function (it) { return !!slideBuffers[it.title]; });
+        if (titlesWithBuf.length === 0) {
+            container.innerHTML = '<div class="pesu-inline-empty">No slides to preview yet</div>';
+            return;
+        }
+
+        // Tab bar
+        var tabBar = document.createElement('div');
+        tabBar.className = 'pesu-inline-tabs';
+        tabBar.id = 'pesu-inline-tabs';
+        titlesWithBuf.forEach(function (item) {
+            var tab = document.createElement('button');
+            tab.className = 'pesu-inline-tab' + (item.title === activeTitle ? ' active' : '');
+            tab.textContent = item.title;
+            tab.dataset.title = item.title;
+            tab.onclick = function () {
+                tabBar.querySelectorAll('.pesu-inline-tab').forEach(function (t) { t.classList.remove('active'); });
+                tab.classList.add('active');
+                renderInlineContent(item.title, content);
+            };
+            tabBar.appendChild(tab);
+        });
+        container.appendChild(tabBar);
+
+        // Content area
+        var content = document.createElement('div');
+        content.className = 'pesu-inline-content';
+        content.id = 'pesu-inline-content';
+        container.appendChild(content);
+
+        await renderInlineContent(activeTitle, content);
+    }
+
+    async function renderInlineContent(title, container) {
+        container.innerHTML = '<div class="pesu-preview-loading"><div class="spinner-sm"></div> Loading...</div>';
+        var data = slideBuffers[title];
+        if (!data) { container.innerHTML = '<div class="pesu-inline-empty">No preview data</div>'; return; }
+
+        if (data.isPdf) {
+            await renderPdfInline(data.buf, container);
+        } else if (data.isZip) {
+            await renderPptxInline(data.buf, title, container);
+        } else {
+            container.innerHTML = '<div class="pesu-inline-empty">Unsupported format</div>';
+        }
+    }
+
+    function getInlineRenderWidth(container) {
+        // In fullscreen, compute width from viewport minus chat drawer
+        if (fullscreenMode) {
+            var drawer = document.getElementById('pesu-chat-drawer');
+            var drawerW = (drawer && !drawer.classList.contains('collapsed')) ? drawer.offsetWidth : 0;
+            return window.innerWidth - drawerW - 64;
+        }
+        return container.clientWidth || 400;
+    }
+
+    async function renderPdfInline(buf, container) {
+        var lib = await loadPdfJs();
+        if (!lib) { container.innerHTML = '<div class="pesu-inline-empty">PDF.js not available</div>'; return; }
+        try {
+            var doc = await lib.getDocument({ data: new Uint8Array(buf.slice(0)) }).promise;
+            container.innerHTML = '';
+            var pageCount = doc.numPages;
+            var counter = document.createElement('div');
+            counter.className = 'pesu-preview-page-count';
+            counter.textContent = pageCount + ' page' + (pageCount > 1 ? 's' : '');
+            container.appendChild(counter);
+
+            var renderWidth = getInlineRenderWidth(container);
+            var dpr = window.devicePixelRatio || 1;
+            var hiresMultiplier = fullscreenMode ? Math.max(dpr, 2) : 2;
+            for (var p = 1; p <= pageCount; p++) {
+                var page = await doc.getPage(p);
+                var viewport = page.getViewport({ scale: 1 });
+                var fitScale = (renderWidth - 24) / viewport.width;
+                var hiresVp = page.getViewport({ scale: fitScale * hiresMultiplier });
+
+                var wrapper = document.createElement('div');
+                wrapper.className = 'pesu-preview-page';
+                wrapper.dataset.page = p;
+                var label = document.createElement('div');
+                label.className = 'pesu-preview-page-label';
+                label.textContent = 'Page ' + p;
+                wrapper.appendChild(label);
+
+                var canvas = document.createElement('canvas');
+                canvas.width = hiresVp.width;
+                canvas.height = hiresVp.height;
+                canvas.className = 'pesu-preview-canvas';
+                wrapper.appendChild(canvas);
+                container.appendChild(wrapper);
+
+                var ctx = canvas.getContext('2d');
+                await page.render({ canvasContext: ctx, viewport: hiresVp }).promise;
+            }
+        } catch (e) {
+            container.innerHTML = '<div class="pesu-inline-empty">Failed to render PDF</div>';
+        }
+    }
+
+    async function renderPptxInline(buf, title, container) {
+        try {
+            var containerWidth = getInlineRenderWidth(container);
+            var canvasW = containerWidth - 24;
+            var canvasH = Math.round(canvasW * 0.75);
+            var slides = await window.pptxToHtml(buf, { width: canvasW, height: canvasH, scaleToFit: true, letterbox: false });
+            container.innerHTML = '';
+
+            var counter = document.createElement('div');
+            counter.className = 'pesu-preview-page-count';
+            counter.textContent = slides.length + ' slide' + (slides.length > 1 ? 's' : '');
+            container.appendChild(counter);
+
+            for (var i = 0; i < slides.length; i++) {
+                var wrapper = document.createElement('div');
+                wrapper.className = 'pesu-preview-pptx-wrapper';
+                wrapper.dataset.page = (i + 1);
+                var label = document.createElement('div');
+                label.className = 'pesu-preview-page-label';
+                label.textContent = 'Slide ' + (i + 1);
+                wrapper.appendChild(label);
+                var slideDiv = document.createElement('div');
+                slideDiv.className = 'pesu-preview-pptx-canvas';
+                slideDiv.style.aspectRatio = '4/3';
+                slideDiv.innerHTML = slides[i];
+                wrapper.appendChild(slideDiv);
+                container.appendChild(wrapper);
+            }
+            if (slides.length === 0) {
+                container.innerHTML = '<div class="pesu-inline-empty">No slides found</div>';
+            }
+        } catch (e) {
+            container.innerHTML = '<div class="pesu-inline-empty">Failed to render PPTX</div>';
+        }
     }
 
     async function openPreview(activeTitle) {
@@ -653,6 +1192,104 @@
         }
     }
 
+    // ─── Find referenced page within a slide (per-page text matching) ───
+    function findReferencedPage(responseText, slideTitle) {
+        var pages = slidePageTexts[slideTitle];
+        if (!pages || pages.length === 0) return -1;
+
+        var lowerResp = responseText.toLowerCase();
+        var stopWords = ['the', 'a', 'an', 'of', 'and', 'in', 'to', 'for', 'is', 'on', 'at', 'by', 'with', 'from',
+            'this', 'that', 'are', 'was', 'were', 'be', 'been', 'has', 'have', 'had', 'not', 'but', 'or', 'so',
+            'if', 'its', 'it', 'as', 'can', 'will', 'which', 'their', 'them', 'they', 'we', 'you', 'he', 'she'];
+
+        var bestPage = -1, bestScore = 0;
+
+        for (var p = 0; p < pages.length; p++) {
+            if (!pages[p]) continue;
+            var words = pages[p].toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/);
+            var unique = {};
+            var signif = words.filter(function (w) {
+                if (w.length < 3 || stopWords.indexOf(w) !== -1 || unique[w]) return false;
+                unique[w] = true;
+                return true;
+            });
+
+            var score = 0;
+            for (var j = 0; j < signif.length; j++) {
+                if (lowerResp.indexOf(signif[j]) !== -1) {
+                    score += (signif[j].length > 6) ? 4 : (signif[j].length > 4) ? 2 : 1;
+                }
+            }
+            // Normalize by word count to avoid long pages always winning
+            if (signif.length > 0) score = score / Math.sqrt(signif.length);
+
+            if (score > bestScore) {
+                bestScore = score;
+                bestPage = p;
+            }
+        }
+
+        return bestScore > 1.5 ? bestPage : -1;
+    }
+
+    // ─── Auto-scroll inline preview to a specific page ───
+    function autoScrollToPage(slideTitle, pageNum) {
+        if (!inlinePreviewOpen) return;
+        var key = slideTitle + ':' + pageNum;
+        if (_lastScrolledPage === key) return; // avoid repeat scroll for same page
+        _lastScrolledPage = key;
+
+        // Switch tab if needed
+        var inlineTabs = document.getElementById('pesu-inline-tabs');
+        if (inlineTabs) {
+            var activeTab = inlineTabs.querySelector('.pesu-inline-tab.active');
+            if (!activeTab || activeTab.dataset.title !== slideTitle) {
+                var tabs = inlineTabs.querySelectorAll('.pesu-inline-tab');
+                tabs.forEach(function (t) {
+                    if (t.dataset.title === slideTitle && !t.classList.contains('active')) {
+                        t.click();
+                    }
+                });
+                // Wait for render before scrolling
+                setTimeout(function () { scrollToPageElement(pageNum); }, 300);
+                return;
+            }
+        }
+        scrollToPageElement(pageNum);
+    }
+
+    function scrollToPageElement(pageNum) {
+        var content = document.getElementById('pesu-inline-content');
+        if (!content) return;
+        // pageNum is 0-indexed from findReferencedPage, data-page is 1-indexed
+        var target = content.querySelector('[data-page=\"' + (pageNum + 1) + '\"]');
+        if (!target) return;
+
+        // Smooth scroll
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+        // Add highlight pulse
+        target.classList.add('pesu-page-auto-highlight');
+        setTimeout(function () { target.classList.remove('pesu-page-auto-highlight'); }, 2500);
+    }
+
+    // ─── Source indicator pill (shows which page the AI is referencing) ───
+    function addSourcePill(msgDiv, slideTitle, pageNum, isPdf) {
+        var existing = msgDiv.querySelector('.pesu-source-pill');
+        if (existing) existing.remove();
+
+        var pill = document.createElement('div');
+        pill.className = 'pesu-source-pill';
+        var pageLabel = isPdf ? 'Page ' + (pageNum + 1) : 'Slide ' + (pageNum + 1);
+        pill.innerHTML = '<span class="pesu-source-icon">\u25B6</span> <strong>' + pageLabel + '</strong> <span class="pesu-source-title">' + slideTitle + '</span>';
+        pill.title = 'Click to scroll to this page';
+        pill.onclick = function () { autoScrollToPage(slideTitle, pageNum); };
+
+        // Insert before the bubble
+        var bubble = msgDiv.querySelector('.pesu-chat-msg-bubble');
+        if (bubble) msgDiv.insertBefore(pill, bubble);
+    }
+
     // ─── Auto-highlight referenced slide ───
     function highlightReferencedSlide(responseText) {
         if (!responseText || selectedItems.length === 0) return;
@@ -717,7 +1354,17 @@
 
         // Auto-switch preview tab (ONLY if already open)
         var targetTitle = selectedItems[referencedIdx].title;
-        if (previewOpen) {
+        if (inlinePreviewOpen) {
+            var inlineTabs = document.getElementById('pesu-inline-tabs');
+            if (inlineTabs) {
+                var tabs = inlineTabs.querySelectorAll('.pesu-inline-tab');
+                tabs.forEach(function (t) {
+                    if (t.dataset.title === targetTitle && !t.classList.contains('active')) {
+                        t.click();
+                    }
+                });
+            }
+        } else if (previewOpen) {
             var previewTabs = document.getElementById('pesu-preview-tabs');
             if (previewTabs) {
                 var tabs = previewTabs.querySelectorAll('.pesu-preview-tab');
@@ -728,11 +1375,61 @@
                 });
             }
         }
+
+        // Auto-scroll to the specific page within the slide
+        if (inlinePreviewOpen) {
+            var pageIdx = findReferencedPage(responseText, targetTitle);
+            if (pageIdx !== -1) {
+                autoScrollToPage(targetTitle, pageIdx);
+            }
+        }
+    }
+
+    // ─── Live page detection during streaming (debounced) ───
+    var _streamPageTimer = null;
+    function detectPageDuringStream(currentText, msgDiv) {
+        if (_streamPageTimer) clearTimeout(_streamPageTimer);
+        _streamPageTimer = setTimeout(function () {
+            if (!inlinePreviewOpen || selectedItems.length === 0) return;
+
+            // Find which slide file the text is mostly about
+            var bestTitle = null, bestSlideScore = 0;
+            for (var i = 0; i < selectedItems.length; i++) {
+                var title = selectedItems[i].title;
+                var pages = slidePageTexts[title];
+                if (!pages) continue;
+                // Quick check: how many page words appear in the response
+                var score = 0;
+                for (var p = 0; p < pages.length; p++) {
+                    if (!pages[p]) continue;
+                    var words = pages[p].toLowerCase().split(/\s+/).filter(function(w) { return w.length > 4; });
+                    var sampled = words.length > 20 ? words.filter(function(_, idx) { return idx % Math.ceil(words.length / 20) === 0; }) : words;
+                    for (var j = 0; j < sampled.length; j++) {
+                        if (currentText.toLowerCase().indexOf(sampled[j]) !== -1) score++;
+                    }
+                }
+                if (score > bestSlideScore) { bestSlideScore = score; bestTitle = title; }
+            }
+
+            if (!bestTitle || bestSlideScore < 3) return;
+
+            var pageIdx = findReferencedPage(currentText, bestTitle);
+            if (pageIdx !== -1) {
+                autoScrollToPage(bestTitle, pageIdx);
+
+                // Add/update source pill on the message
+                if (msgDiv) {
+                    var data = slideBuffers[bestTitle];
+                    var isPdf = data && data.isPdf;
+                    addSourcePill(msgDiv, bestTitle, pageIdx, isPdf);
+                }
+            }
+        }, 600); // 600ms debounce while streaming
     }
 
     function addMoreSlides() {
         // Remove existing picker if any
-        var existing = document.getElementById('pesu-slide-picker');
+        var existing = document.getElementById('pesu-slide-picker-overlay');
         if (existing) { existing.remove(); return; }
 
         if (!currentItems || currentItems.length === 0) {
@@ -740,10 +1437,12 @@
             return;
         }
 
-        var sidebar = document.getElementById('pesu-chat-sidebar');
-        if (!sidebar) return;
+        // Create modal overlay backdrop
+        var overlay = document.createElement('div');
+        overlay.id = 'pesu-slide-picker-overlay';
+        overlay.className = 'pesu-slide-picker-overlay';
 
-        // Create inline picker overlay
+        // Modal card
         var picker = document.createElement('div');
         picker.id = 'pesu-slide-picker';
         picker.className = 'pesu-slide-picker';
@@ -804,17 +1503,16 @@
         footer.appendChild(addBtn);
         picker.appendChild(footer);
 
-        // Insert in sidebar after context
-        var ctx = document.getElementById('pesu-chat-context');
-        if (ctx && ctx.nextSibling) {
-            sidebar.insertBefore(picker, ctx.nextSibling);
-        } else {
-            sidebar.appendChild(picker);
-        }
+        // Mount: picker inside overlay, overlay on body
+        overlay.appendChild(picker);
+        document.body.appendChild(overlay);
+
+        // Close on backdrop click
+        overlay.onclick = function (e) { if (e.target === overlay) overlay.remove(); };
 
         // Events
-        document.getElementById('pesu-slide-picker-close').onclick = function () { picker.remove(); };
-        cancelBtn.onclick = function () { picker.remove(); };
+        document.getElementById('pesu-slide-picker-close').onclick = function () { overlay.remove(); };
+        cancelBtn.onclick = function () { overlay.remove(); };
 
         addBtn.onclick = function () {
             var newItems = [];
@@ -825,7 +1523,7 @@
                 }
             });
 
-            picker.remove();
+            overlay.remove();
 
             if (newItems.length > 0) {
                 selectedItems = selectedItems.concat(newItems);
@@ -860,7 +1558,9 @@
                 var isZip = hdr[0] === 0x50 && hdr[1] === 0x4B;
                 // Cache buffer copy for preview (slice to avoid detached ArrayBuffer)
                 slideBuffers[item.title] = { buf: buf.slice(0), isPdf: isPdf, isZip: isZip };
-                var text = isPdf ? await extractPdf(buf) : isZip ? await extractPptx(buf) : '';
+                var result = isPdf ? await extractPdf(buf) : isZip ? await extractPptx(buf) : { text: '', pages: [] };
+                var text = (typeof result === 'string') ? result : result.text;
+                if (result.pages && result.pages.length > 0) slidePageTexts[item.title] = result.pages;
                 slideTexts[item.title] = text.trim() || '';
             } catch (e) {
                 slideTexts[item.title] = '';
@@ -871,14 +1571,13 @@
         renderContextBanner();
         saveHistory(unitTab());
 
-        // Refresh preview panel to include new tabs
+        // Refresh inline preview to include new tabs
         var firstNew = newItems.find(function (it) { return !!slideBuffers[it.title]; });
         if (firstNew) {
-            openPreview(firstNew.title);
-        } else if (previewOpen) {
-            // Re-open with current items to update tab bar
+            openInlinePreview(firstNew.title);
+        } else if (inlinePreviewOpen) {
             var currentActive = selectedItems.find(function (it) { return !!slideBuffers[it.title]; });
-            if (currentActive) openPreview(currentActive.title);
+            if (currentActive) renderInlineSlides(currentActive.title);
         }
     }
 
@@ -929,7 +1628,9 @@
                 // Cache buffer copy for preview (slice to avoid detached ArrayBuffer)
                 slideBuffers[item.title] = { buf: buf.slice(0), isPdf: pdf, isZip: zip };
 
-                var text = pdf ? await extractPdf(buf) : zip ? await extractPptx(buf) : '';
+                var result = pdf ? await extractPdf(buf) : zip ? await extractPptx(buf) : { text: '', pages: [] };
+                var text = (typeof result === 'string') ? result : result.text;
+                if (result.pages && result.pages.length > 0) slidePageTexts[item.title] = result.pages;
 
                 if (text.trim()) {
                     allText.push('=== ' + item.title + ' ===\n' + text.trim());
@@ -979,9 +1680,9 @@
 
         saveHistory(unitTab());
 
-        // Auto-open preview panel with the first extracted slide
+        // Auto-open inline preview with the first extracted slide
         var firstWithBuf = selectedItems.find(function (it) { return !!slideBuffers[it.title]; });
-        if (firstWithBuf) openPreview(firstWithBuf.title);
+        if (firstWithBuf) openInlinePreview(firstWithBuf.title);
     }
 
     function showWarning(parent, msg) {
@@ -1037,13 +1738,15 @@
             try {
                 var doc = await lib.getDocument({ data: new Uint8Array(buf) }).promise;
                 var t = [];
+                var pages = []; // per-page text array
                 for (var p = 1; p <= doc.numPages; p++) {
                     var pg = await doc.getPage(p);
                     var tc = await pg.getTextContent();
                     var s = tc.items.map(function (i) { return i.str; }).join(' ');
+                    pages.push(s.trim());
                     if (s.trim()) t.push(s.trim());
                 }
-                if (t.join('').length > 10) return t.join('\n');
+                if (t.join('').length > 10) return { text: t.join('\n'), pages: pages };
             } catch (e) { }
         }
         // Fallback
@@ -1052,7 +1755,7 @@
         var chunks = [], m;
         var re = /\(([^)]*)\)\s*Tj/g;
         while ((m = re.exec(raw)) !== null) chunks.push(m[1]);
-        return chunks.join('\n');
+        return { text: chunks.join('\n'), pages: [] };
     }
 
     async function extractPptx(buf) {
@@ -1065,15 +1768,18 @@
             });
             files.sort(function (a, b) { return a.num - b.num; });
             var out = [];
+            var pages = []; // per-slide text array
             for (var i = 0; i < files.length; i++) {
                 var xml = await zip.file(files[i].path).async('text');
                 var texts = [], m;
                 var r = /<a:t[^>]*>([\s\S]*?)<\/a:t>/gi;
                 while ((m = r.exec(xml)) !== null) texts.push(m[1].replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>'));
-                if (texts.join('').trim()) out.push('Slide ' + files[i].num + ': ' + texts.join(' '));
+                var pageText = texts.join(' ').trim();
+                pages.push(pageText);
+                if (pageText) out.push('Slide ' + files[i].num + ': ' + pageText);
             }
-            return out.join('\n\n');
-        } catch (e) { return ''; }
+            return { text: out.join('\n\n'), pages: pages };
+        } catch (e) { return { text: '', pages: [] }; }
     }
 
     // ─── Streaming Send ───
@@ -1170,6 +1876,9 @@
         msgDiv.appendChild(bubble);
         msgArea.appendChild(msgDiv);
 
+        // Reset auto-scroll tracker for this new response
+        _lastScrolledPage = null;
+
         var fullText = '';
         var reader = resp.body.getReader();
         var decoder = new TextDecoder();
@@ -1198,6 +1907,8 @@
                         fullText += chunkText;
                         bubble.innerHTML = renderMarkdown(fullText) + '<span class="streaming-cursor"></span>';
                         msgArea.scrollTop = msgArea.scrollHeight;
+                        // Live page detection during streaming
+                        detectPageDuringStream(fullText, msgDiv);
                     }
                 } catch (e) { }
             }
@@ -1226,6 +1937,32 @@
 
         // Auto-highlight referenced slide
         highlightReferencedSlide(fullText);
+
+        // Final source pill — determine best page match
+        if (inlinePreviewOpen && selectedItems.length > 0) {
+            var bestTitle = null, bestSlideScore = 0;
+            for (var si = 0; si < selectedItems.length; si++) {
+                var stitle = selectedItems[si].title;
+                var pgs = slidePageTexts[stitle];
+                if (!pgs) continue;
+                var sc = 0;
+                for (var pi = 0; pi < pgs.length; pi++) {
+                    if (!pgs[pi]) continue;
+                    var ws = pgs[pi].toLowerCase().split(/\s+/).filter(function(w) { return w.length > 4; });
+                    for (var wi = 0; wi < ws.length; wi++) {
+                        if (fullText.toLowerCase().indexOf(ws[wi]) !== -1) sc++;
+                    }
+                }
+                if (sc > bestSlideScore) { bestSlideScore = sc; bestTitle = stitle; }
+            }
+            if (bestTitle && bestSlideScore >= 3) {
+                var finalPage = findReferencedPage(fullText, bestTitle);
+                if (finalPage !== -1) {
+                    var fdata = slideBuffers[bestTitle];
+                    addSourcePill(msgDiv, bestTitle, finalPage, fdata && fdata.isPdf);
+                }
+            }
+        }
 
         isProcessing = false;
         document.getElementById('pesu-chat-send-btn').disabled = false;
