@@ -10,9 +10,19 @@
   },
   "permissions": [],
   "host_permissions": [
-    "https://www.pesuacademy.com/*"
+    "https://www.pesuacademy.com/*",
+    "https://files.pesuacademy.com/*"
   ],
+  "background": {
+    "service_worker": "background.js"
+  },
   "content_scripts": [
+    {
+      "matches": ["https://www.pesuacademy.com/Academy/*"],
+      "js": ["bridge.js"],
+      "run_at": "document_idle",
+      "world": "ISOLATED"
+    },
     {
       "matches": ["https://www.pesuacademy.com/Academy/*"],
       "js": ["lib/pdf-lib.min.js", "lib/jszip.min.js", "content.js"],
