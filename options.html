@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>PESUmate Options</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; padding: 20px; max-width: 400px; }
+    h1 { font-size: 18px; margin-top: 0; }
+    label { display: block; margin-bottom: 8px; font-weight: bold; }
+    input[type="text"] { width: 100%; padding: 8px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+    button { padding: 8px 16px; background: #2e7d32; color: #fff; border: none; border-radius: 4px; cursor: pointer; }
+    button:hover { background: #1b5e20; }
+    #status { margin-top: 15px; color: green; font-size: 14px; }
+    .help-text { font-size: 13px; color: #555; margin-bottom: 15px; }
+    .help-text a { color: #1976d2; text-decoration: none; }
+    .help-text a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <h1>PESUmate Settings</h1>
+  <div class="help-text">
+    To automatically convert PPTX slides to PDF, PESUmate uses <a href="https://www.convertapi.com/" target="_blank">ConvertAPI</a>. 
+    You can get a free API Secret (gives you about 250 conversions per month) and enter it below.
+  </div>
+  
+  <label for="convertApiKey">ConvertAPI Secret:</label>
+  <input type="text" id="convertApiKey" placeholder="e.g. XyZ123... (Leave blank to disable)">
+  
+  <button id="saveBtn">Save Settings</button>
+  <div id="status"></div>
+
+  <script src="options.js"></script>
+</body>
+</html>

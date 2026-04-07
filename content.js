@@ -16,14 +16,36 @@
   var _bgFetchCallbacks = {};
 
   window.addEventListener('message', function (event) {
-    if (event.source !== window) return;
-    if (!event.data || event.data.type !== 'PESUMATE_FETCH_RESP') return;
-    var cb = _bgFetchCallbacks[event.data.requestId];
-    if (cb) {
-      delete _bgFetchCallbacks[event.data.requestId];
-      cb(event.data.response);
+    if (event.source !== window || !event.data) return;
+    if (event.data.type === 'PESUMATE_FETCH_RESP') {
+      var cb = _bgFetchCallbacks[event.data.requestId];
+      if (cb) {
+        delete _bgFetchCallbacks[event.data.requestId];
+        cb(event.data.response);
+      }
+    } else if (event.data.type === 'PESUMATE_GET_SETTINGS_RESP') {
+      var cb2 = _bgFetchCallbacks[event.data.requestId];
+      if (cb2) {
+        delete _bgFetchCallbacks[event.data.requestId];
+        cb2(event.data.settings);
+      }
     }
   });
+
+  function getSettings() {
+    return new Promise(function (resolve) {
+      var id = ++_bgFetchId;
+      var timeoutId = setTimeout(function() {
+        delete _bgFetchCallbacks[id];
+        resolve(null);
+      }, 1500);
+      _bgFetchCallbacks[id] = function(data) {
+        clearTimeout(timeoutId);
+        resolve(data);
+      };
+      window.postMessage({ type: 'PESUMATE_GET_SETTINGS', requestId: id }, '*');
+    });
+  }
 
   function bgFetch(url) {
     return new Promise(function (resolve, reject) {
@@ -166,6 +188,9 @@
         btn.text('Downloading...').prop('disabled', true);
         progressWrap.show();
 
+        var settings = await getSettings();
+        var convertApiKey = settings ? settings.convertApiKey : null;
+
         var PDFDocument = PDFLib.PDFDocument;
         var mergedPdf = await PDFDocument.create();
         var pdfCount = 0, failed = 0;
@@ -243,9 +268,46 @@
                 counter++;
               }
               usedNames.add(finalName.toLowerCase());
-              pptxFiles.push({ name: finalName, data: arrayBuf });
-              $('#pesu-dl-item-' + i).removeClass().addClass('pesu-dl-item zipped')
-                .text(item.title + ' \u2014 zipped');
+
+              var pdfConverted = false;
+              if (convertApiKey && /\.(pptx?)$/i.test(finalName)) {
+                statusDiv.text('Converting ' + (i + 1) + '/' + items.length + ' to PDF...');
+                try {
+                  var formData = new FormData();
+                  formData.append('File', new Blob([arrayBuf]), finalName);
+                  formData.append('StoreFile', 'false');
+                  var convResp = await fetch('https://v2.convertapi.com/convert/pptx/to/pdf?Secret=' + encodeURIComponent(convertApiKey), {
+                    method: 'POST',
+                    body: formData
+                  });
+                  if (!convResp.ok) throw new Error('Conversion API failed: ' + convResp.status);
+                  var convData = await convResp.json();
+                  if (convData.Files && convData.Files[0] && convData.Files[0].FileData) {
+                    var pdfB64 = convData.Files[0].FileData;
+                    var pdfBinaryStr = atob(pdfB64);
+                    var pdfLen = pdfBinaryStr.length;
+                    var pdfBytes = new Uint8Array(pdfLen);
+                    for (var k = 0; k < pdfLen; k++) {
+                      pdfBytes[k] = pdfBinaryStr.charCodeAt(k);
+                    }
+                    var srcPdf = await PDFDocument.load(pdfBytes.buffer, { ignoreEncryption: true });
+                    var pages = await mergedPdf.copyPages(srcPdf, srcPdf.getPageIndices());
+                    pages.forEach(function (p) { mergedPdf.addPage(p); });
+                    pdfCount++;
+                    $('#pesu-dl-item-' + i).removeClass().addClass('pesu-dl-item merged')
+                      .text(item.title + ' \u2014 ' + srcPdf.getPageCount() + 'pg converted & merged');
+                    pdfConverted = true;
+                  }
+                } catch (convErr) {
+                  console.error('[PESUmate] Conversion error for ' + finalName, convErr);
+                }
+              }
+
+              if (!pdfConverted) {
+                pptxFiles.push({ name: finalName, data: arrayBuf });
+                $('#pesu-dl-item-' + i).removeClass().addClass('pesu-dl-item zipped')
+                  .text(item.title + ' \u2014 zipped');
+              }
             } else {
               failed++;
               $('#pesu-dl-item-' + i).removeClass().addClass('pesu-dl-item skipped')
