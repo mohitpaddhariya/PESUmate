@@ -2,6 +2,13 @@
 // Proxies fetch requests from the content script to bypass CORS restrictions.
 
 chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
+  if (msg.type === 'PESUMATE_GET_SETTINGS') {
+    chrome.storage.local.get(['convertApiKey'], function (result) {
+      sendResponse(result || {});
+    });
+    return true; // async
+  }
+
   if (msg.type !== 'PESUMATE_FETCH') return false;
 
   fetch(msg.url, { credentials: 'include', redirect: 'follow' })
