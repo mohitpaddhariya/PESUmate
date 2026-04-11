@@ -17,13 +17,47 @@
 
   window.addEventListener('message', function (event) {
     if (event.source !== window) return;
-    if (!event.data || event.data.type !== 'PESUMATE_FETCH_RESP') return;
-    var cb = _bgFetchCallbacks[event.data.requestId];
-    if (cb) {
-      delete _bgFetchCallbacks[event.data.requestId];
-      cb(event.data.response);
+    if (!event.data) return;
+    
+    if (event.data.type === 'PESUMATE_FETCH_RESP' || event.data.type === 'PESUMATE_CONVERT_RESP') {
+      var cb = _bgFetchCallbacks[event.data.requestId];
+      if (cb) {
+        delete _bgFetchCallbacks[event.data.requestId];
+        cb(event.data.response);
+      }
     }
   });
+
+  function arrayBufferToBase64(buffer) {
+    var binary = '';
+    var bytes = new Uint8Array(buffer);
+    var len = bytes.byteLength;
+    for (var i = 0; i < len; i++) {
+        binary += String.fromCharCode(bytes[i]);
+    }
+    return window.btoa(binary);
+  }
+
+  function convertToPdf(filename, arrayBuffer) {
+    return new Promise(function (resolve, reject) {
+      var id = ++_bgFetchId;
+      _bgFetchCallbacks[id] = function (resp) {
+        if (!resp || !resp.ok) {
+          reject(new Error(resp ? resp.error : 'No response from background'));
+        } else {
+          var binaryString = window.atob(resp.pdfBase64);
+          var len = binaryString.length;
+          var bytes = new Uint8Array(len);
+          for (var i = 0; i < len; i++) {
+              bytes[i] = binaryString.charCodeAt(i);
+          }
+          resolve(bytes.buffer);
+        }
+      };
+      var base64Data = arrayBufferToBase64(arrayBuffer);
+      window.postMessage({ type: 'PESUMATE_CONVERT_PPT', requestId: id, filename: filename, base64Data: base64Data }, '*');
+    });
+  }
 
   function bgFetch(url) {
     return new Promise(function (resolve, reject) {
@@ -234,18 +268,46 @@
                 filename = item.title.replace(/[/\\:*?"<>|]/g, '_');
                 if (!/\.(pptx?|docx?|xlsx?)$/i.test(filename)) filename += '.pptx';
               }
-              var finalName = filename, counter = 1;
-              while (usedNames.has(finalName.toLowerCase())) {
-                var dot = filename.lastIndexOf('.');
-                finalName = dot > 0
-                  ? filename.slice(0, dot) + ' (' + counter + ')' + filename.slice(dot)
-                  : filename + ' (' + counter + ')';
-                counter++;
+
+              var isPptx = /\.(pptx?)$/i.test(filename);
+              var pdfBufferFromPptx = null;
+
+              if (isPptx) {
+                try {
+                  statusDiv.text('Converting ' + filename + ' to PDF...');
+                  pdfBufferFromPptx = await convertToPdf(filename, arrayBuf);
+                } catch (convErr) {
+                  console.log('[PESUmate] PPT to PDF conversion skipped/failed: ' + convErr.message);
+                }
               }
-              usedNames.add(finalName.toLowerCase());
-              pptxFiles.push({ name: finalName, data: arrayBuf });
-              $('#pesu-dl-item-' + i).removeClass().addClass('pesu-dl-item zipped')
-                .text(item.title + ' \u2014 zipped');
+
+              if (pdfBufferFromPptx) {
+                try {
+                  var srcPdf = await PDFDocument.load(pdfBufferFromPptx, { ignoreEncryption: true });
+                  var pages = await mergedPdf.copyPages(srcPdf, srcPdf.getPageIndices());
+                  pages.forEach(function (p) { mergedPdf.addPage(p); });
+                  pdfCount++;
+                  $('#pesu-dl-item-' + i).removeClass().addClass('pesu-dl-item merged')
+                    .text(item.title + ' \u2014 ' + srcPdf.getPageCount() + 'pg merged');
+                } catch (e) {
+                  failed++;
+                  $('#pesu-dl-item-' + i).removeClass().addClass('pesu-dl-item failed')
+                    .text(item.title + ' \u2014 error merging');
+                }
+              } else {
+                var finalName = filename, counter = 1;
+                while (usedNames.has(finalName.toLowerCase())) {
+                  var dot = filename.lastIndexOf('.');
+                  finalName = dot > 0
+                    ? filename.slice(0, dot) + ' (' + counter + ')' + filename.slice(dot)
+                    : filename + ' (' + counter + ')';
+                  counter++;
+                }
+                usedNames.add(finalName.toLowerCase());
+                pptxFiles.push({ name: finalName, data: arrayBuf });
+                $('#pesu-dl-item-' + i).removeClass().addClass('pesu-dl-item zipped')
+                  .text(item.title + ' \u2014 zipped');
+              }
             } else {
               failed++;
               $('#pesu-dl-item-' + i).removeClass().addClass('pesu-dl-item skipped')
