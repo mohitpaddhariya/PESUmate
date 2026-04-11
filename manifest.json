@@ -11,7 +11,9 @@
   "permissions": [],
   "host_permissions": [
     "https://www.pesuacademy.com/*",
-    "https://files.pesuacademy.com/*"
+    "https://files.pesuacademy.com/*",
+    "https://script.google.com/*",
+    "https://script.googleusercontent.com/*"
   ],
   "background": {
     "service_worker": "background.js"
