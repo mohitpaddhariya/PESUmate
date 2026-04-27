@@ -273,11 +273,16 @@
               var pdfBufferFromPptx = null;
 
               if (isPptx) {
-                try {
-                  statusDiv.text('Converting ' + filename + ' to PDF...');
-                  pdfBufferFromPptx = await convertToPdf(filename, arrayBuf);
-                } catch (convErr) {
-                  console.log('[PESUmate] PPT to PDF conversion skipped/failed: ' + convErr.message);
+                var retryConv = true;
+                while (retryConv) {
+                  try {
+                    statusDiv.text('Converting ' + filename + ' to PDF...');
+                    pdfBufferFromPptx = await convertToPdf(filename, arrayBuf);
+                    retryConv = false;
+                  } catch (convErr) {
+                    console.log('[PESUmate] PPT to PDF conversion skipped/failed: ' + convErr.message);
+                    retryConv = confirm('Failed to convert "' + filename + '" to PDF.\n\nPress OK to try again, or Cancel to zip it instead.');
+                  }
                 }
               }
 
