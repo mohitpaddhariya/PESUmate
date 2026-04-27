@@ -1,28 +1,30 @@
 {
   "manifest_version": 3,
   "name": "PESUmate",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Download all slides from PESU Academy — merge PDFs, zip PPTX, one click.",
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
   },
-  "permissions": [],
+  "permissions": [
+    "declarativeNetRequest"
+  ],
   "host_permissions": [
     "https://www.pesuacademy.com/*",
     "https://files.pesuacademy.com/*"
   ],
-  "background": {
-    "service_worker": "background.js"
+  "declarative_net_request": {
+    "rule_resources": [
+      {
+        "id": "cors_rules",
+        "enabled": true,
+        "path": "rules.json"
+      }
+    ]
   },
   "content_scripts": [
-    {
-      "matches": ["https://www.pesuacademy.com/Academy/*"],
-      "js": ["bridge.js"],
-      "run_at": "document_idle",
-      "world": "ISOLATED"
-    },
     {
       "matches": ["https://www.pesuacademy.com/Academy/*"],
       "js": ["lib/pdf-lib.min.js", "lib/jszip.min.js", "content.js"],

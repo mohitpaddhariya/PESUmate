@@ -11,36 +11,7 @@
   // ─── Shared state (persists across SPA navigations) ───
   var cache = {};
 
-  // ─── Background-fetch via bridge (bypasses CORS) ───
-  var _bgFetchId = 0;
-  var _bgFetchCallbacks = {};
 
-  window.addEventListener('message', function (event) {
-    if (event.source !== window) return;
-    if (!event.data || event.data.type !== 'PESUMATE_FETCH_RESP') return;
-    var cb = _bgFetchCallbacks[event.data.requestId];
-    if (cb) {
-      delete _bgFetchCallbacks[event.data.requestId];
-      cb(event.data.response);
-    }
-  });
-
-  function bgFetch(url) {
-    return new Promise(function (resolve, reject) {
-      var id = ++_bgFetchId;
-      _bgFetchCallbacks[id] = function (resp) {
-        if (!resp || !resp.ok) {
-          reject(new Error(resp ? resp.error : 'No response from background'));
-        } else {
-          resolve({
-            arrayBuffer: new Uint8Array(resp.data).buffer,
-            contentDisposition: resp.contentDisposition || ''
-          });
-        }
-      };
-      window.postMessage({ type: 'PESUMATE_FETCH', requestId: id, url: url }, '*');
-    });
-  }
 
   // ─── Bootstrap: watch for #courselistunit to appear/reappear ───
   function boot() {
@@ -179,32 +150,16 @@
           progressBar.css('width', pct + '%');
 
           try {
-            var arrayBuf, contentDisposition;
+            var url = item.isSlideUrl
+              ? item.id
+              : '/Academy/s/referenceMeterials/downloadcoursedoc/' + item.id;
+            // Ensure absolute URL
+            if (url.startsWith('/')) url = location.origin + url;
 
-            if (item.isSlideUrl) {
-              // Slide URLs redirect to CloudFront CDN — route through background worker to bypass CORS
-              var slideUrl = item.id;
-              if (slideUrl.startsWith('/')) slideUrl = location.origin + slideUrl;
-              var result = await bgFetch(slideUrl);
-              arrayBuf = result.arrayBuffer;
-              contentDisposition = result.contentDisposition;
-            } else {
-              // Regular doc downloads — attempt same-origin fetch (needed for session cookies)
-              var url = '/Academy/s/referenceMeterials/downloadcoursedoc/' + item.id;
-              url = location.origin + url;
-              try {
-                var resp = await fetch(url, { credentials: 'same-origin' });
-                if (!resp.ok) throw new Error('HTTP ' + resp.status);
-                arrayBuf = await resp.arrayBuffer();
-                contentDisposition = resp.headers.get('Content-Disposition') || '';
-              } catch (fetchErr) {
-                // If regular fetch fails (likely CORS blocked on redirect), fallback to bgFetch
-                console.log('[PESUmate] Regular fetch failed for ' + item.title + ', trying background proxy: ' + fetchErr.message);
-                var bgResult = await bgFetch(url);
-                arrayBuf = bgResult.arrayBuffer;
-                contentDisposition = bgResult.contentDisposition;
-              }
-            }
+            var resp = await fetch(url, { credentials: 'same-origin' });
+            if (!resp.ok) throw new Error('HTTP ' + resp.status);
+            var arrayBuf = await resp.arrayBuffer();
+            var contentDisposition = resp.headers.get('Content-Disposition') || '';
 
             var header = new Uint8Array(arrayBuf.slice(0, 5));
             var isPdf = header[0] === 0x25 && header[1] === 0x50 && header[2] === 0x44 && header[3] === 0x46;
