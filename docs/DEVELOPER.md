@@ -43,51 +43,43 @@ Page load → manifest injects scripts at document_idle
 
 ---
 
-## API flow (3-step discovery)
+## API flow (DOM-first discovery)
 
 PESU Academy doesn't expose direct download URLs on the page.
 
-### Step 1 — Extract subject ID
+> **Historical note.** Until v1.1.0 this was a 5-step chain that called
+> `/Academy/a/i/getCourse/{subjectid}` and `/Academy/a/i/getCourseClasses/{unitId}`.
+> `/Academy/a/i/*` is the **admin** namespace and now returns
+> `403 Access denied for student role` for every student account, so those two
+> calls are gone. Everything they returned is already present in the page DOM,
+> and the site's own JavaScript never called them either.
+
+### Step 1 - Subject ID and class list (no network)
+
+Every class link on the page carries all the identifiers needed:
 
 ```
-DOM → #CourseContentId [onclick*="handleclasscoursecontentunit"]
-  → regex match → subjectid
+handleclasscoursecontentunit('<classUuid>','<subjectid>','<coursecontentid>','<classNo>',<type>,event)
+                              \________/  \__________/
+                              class UUID    subject ID
 ```
 
-The `subjectid` is embedded in `onclick` attributes of elements inside the course content area.
-
-### Step 2 — Get units
-
 ```
-GET /Academy/a/i/getCourse/{subjectid}
-  → returns HTML <option> elements
-  → parsed into [{id, name}, ...]
+DOM -> [onclick*="handleclasscoursecontentunit"]
+  -> regex -> classUuid (group 1), subjectid (group 2)
+  -> dedup on classUuid
 ```
 
-Returns all units for the subject (e.g., "NLP Basics", "Prompt and RAG").
+A class appears once per content `type` (1,2,3,5,...,10), so the same UUID repeats
+several times and must be de-duplicated. The `type` argument is **ignored by the
+server** - all values return an identical response, so there is nothing to iterate.
 
-### Step 3 — Match active unit
+The unit tabs likewise carry their own ID via `handleclassUnit('<coursecontentid>')`
+on `#courselistunit li a`, which is what replaced the `getCourse` unit list.
 
-The script reads the active tab text from `#courselistunit li.active a` and fuzzy-matches it against the unit list:
+### Step 2 - Scan download links
 
-1. Exact substring match
-2. Case-insensitive match
-3. Word-overlap scoring (fuzzy)
-4. Fallback to first unit
-
-### Step 4 — Get classes
-
-```
-GET /Academy/a/i/getCourseClasses/{unitId}
-  → returns HTML <option> elements
-  → parsed into [{id, name}, ...]
-```
-
-Returns all classes (lectures/sessions) within the matched unit.
-
-### Step 5 — Scan download links
-
-For each class:
+For each distinct class UUID:
 
 ```
 GET /Academy/s/studentProfilePESUAdmin
@@ -95,18 +87,37 @@ GET /Academy/s/studentProfilePESUAdmin
   &actionType=60
   &selectedData={subjectid}
   &id=2
-  &unitid={classId}
-  → returns HTML with download links
+  &unitid={classUuid}      <- the UUID, NOT the numeric unit id
+  -> returns HTML with the slide viewer markup
 ```
 
-Two download patterns are extracted:
+`unitid` must be the class UUID. Passing the numeric `coursecontentid` returns the
+MCQ/quiz pane instead, which contains no download links - a silent wrong-pane bug
+rather than an error.
+
+Download links are extracted from two patterns:
 
 | Pattern | Type | Extraction |
 |---------|------|------------|
-| `downloadcoursedoc('uuid')` | Regular doc (PDF) | UUID → `/Academy/s/referenceMeterials/downloadcoursedoc/{uuid}` |
-| `downloadslidecoursedoc` inside `loadIframe('url')` | Slide (PDF/PPTX) | Full URL from `loadIframe()` |
+| `downloadslidecoursedoc` inside `loadIframe('url')` | Slide (PDF/PPTX) | URL from `loadIframe()`, `#view=...` fragment stripped |
+| `downloadcoursedoc('uuid')` | Regular doc (PDF) | UUID -> `/Academy/s/referenceMeterials/downloadcoursedoc/{uuid}` |
+
+The live markup is:
+
+```html
+<a href="#" onclick="loadIframe('/Academy/a/referenceMeterials/downloadslidecoursedoc/<uuid>#view=FitH&toolbar=0&navpanes=0&scrollbar=0','<uuid>')">
+```
 
 Deduplication via `Set` on IDs/URLs.
+
+### CSRF
+
+The site's own `doAjaxCall()` sends `X-CSRF-Token` from
+`<meta name="csrf-token">` on every request. `apiGet()` in `content.js` does the
+same, so extension requests are indistinguishable from the page's.
+
+Regression coverage for both regexes lives in `scripts/test-scrape.mjs`
+(`node scripts/test-scrape.mjs`), pinned against markup captured from the live site.
 
 ---
 
