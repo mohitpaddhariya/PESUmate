@@ -11,7 +11,45 @@
   // ─── Shared state (persists across SPA navigations) ───
   var cache = {};
 
+  // jQuery $.get rejects with a jqXHR object, which has no .message — string-
+  // concatenating it yields "[object Object]". Read jqXHR fields explicitly.
+  function errMsg(err) {
+    if (err === null || err === undefined) return 'Unknown error';
+    if (typeof err === 'string') return err;
+    if (err.message) return err.message;
+    if (typeof err.status === 'number') {
+      if (err.status === 0) return 'Network error (request blocked, offline, or session expired)';
+      return 'HTTP ' + err.status + (err.statusText ? ' ' + err.statusText : '');
+    }
+    if (err.statusText) return err.statusText;
+    return String(err);
+  }
 
+
+
+  // Every API call goes through here so a failure names the step and URL that
+  // produced it, instead of a bare "HTTP 403". Uses .done/.fail rather than
+  // .catch: jQuery Deferreds only gained .catch in 3.0, and pre-3.0 Deferreds
+  // swallow a thrown error instead of rejecting.
+  function apiGet($, step, url, data) {
+    return new Promise(function (resolve, reject) {
+      $.ajax({
+        url: url,
+        type: 'GET',
+        data: data,
+        headers: { 'X-CSRF-Token': $('meta[name="csrf-token"]').attr('content') }
+      })
+        .done(resolve)
+        .fail(function (jqXHR) {
+          var e = new Error(step + ' failed (' + errMsg(jqXHR) + ') at ' + url);
+          e.status = jqXHR && jqXHR.status;
+          e.step = step;
+          e.url = url;
+          e.responseText = jqXHR && jqXHR.responseText;
+          reject(e);
+        });
+    });
+  }
 
   // ─── Bootstrap: watch for #courselistunit to appear/reappear ───
   function boot() {
@@ -78,6 +116,13 @@
       closeBtn.on('click', function () { container.slideUp(200); navBtn.removeClass('active'); });
       $('body').append(container);
 
+      // Our own nav <li> also carries .active while the panel is open, and
+      // jQuery .text() concatenates every match, so the raw selector yields
+      // "Unit 2PESUmate". Always read the unit name through this.
+      function activeUnitName() {
+        return $('#courselistunit li.active a').not('#pesu-dl-tab-btn a').text().trim();
+      }
+
       // ─── Toggle panel ───
       navBtn.on('click', function () {
         if (container.is(':visible')) {
@@ -86,7 +131,7 @@
         } else {
           container.slideDown(200);
           navBtn.addClass('active');
-          var currentTab = $('#courselistunit li.active a').text().trim();
+          var currentTab = activeUnitName();
           if (currentTab !== _lastRenderedTab) {
             _lastRenderedTab = currentTab;
             fetchAndRender();
@@ -116,15 +161,28 @@
           var btn = $('<button class="pesu-dl-item" id="pesu-dl-item-' + i + '"></button>')
             .text((i + 1) + '. ' + t.title);
 
-          btn.on('click', function () {
-            var a = document.createElement('a');
-            a.href = t.isSlideUrl ? t.id : '/Academy/s/referenceMeterials/downloadcoursedoc/' + t.id;
-            a.download = '';
-            a.style.display = 'none';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            $(this).addClass('done').text(t.title + ' \u2014 done');
+          btn.on('click', async function () {
+            var $btn = $(this);
+            var url = t.isSlideUrl ? t.id : '/Academy/s/referenceMeterials/downloadcoursedoc/' + t.id;
+            if (url.startsWith('/')) url = location.origin + url;
+            $btn.text(t.title + ' \u2014 downloading...');
+            try {
+              // The download attribute is ignored on a cross-origin href, which
+              // navigates the page away instead of saving. Go via a blob.
+              var resp = await fetch(url, { credentials: 'same-origin' });
+              if (!resp.ok) throw new Error('HTTP ' + resp.status);
+              var blob = await resp.blob();
+              var name = '';
+              var cd = resp.headers.get('Content-Disposition') || '';
+              var m = cd.match(/filename\*?=(?:UTF-8''|["']?)([^;"'\n]+)/i);
+              if (m) { try { name = decodeURIComponent(m[1].trim()); } catch (e) { name = m[1].trim(); } }
+              if (!name) name = t.title.replace(/[/\\:*?"<>|]/g, '_');
+              triggerDownload(blob, name);
+              $btn.addClass('done').text(t.title + ' \u2014 done');
+            } catch (err) {
+              console.warn('[PESUmate] Item download failed: ' + t.title, errMsg(err));
+              $btn.addClass('failed').text(t.title + ' \u2014 failed: ' + errMsg(err));
+            }
           });
 
           contentArea.append(btn);
@@ -175,6 +233,7 @@
                   .text(item.title + ' \u2014 ' + srcPdf.getPageCount() + 'pg merged');
               } catch (e) {
                 failed++;
+                console.warn('[PESUmate] PDF merge failed: ' + item.title, errMsg(e));
                 $('#pesu-dl-item-' + i).removeClass().addClass('pesu-dl-item failed')
                   .text(item.title + ' \u2014 error');
               }
@@ -208,6 +267,7 @@
             }
           } catch (err) {
             failed++;
+            console.warn('[PESUmate] Download failed: ' + item.title, errMsg(err));
             $('#pesu-dl-item-' + i).removeClass().addClass('pesu-dl-item failed')
               .text(item.title + ' \u2014 failed');
           }
@@ -252,7 +312,7 @@
       async function fetchAndRender(force) {
         if (_fetching) return;
 
-        var activeUnitText = $('#courselistunit li.active a').text().trim();
+        var activeUnitText = activeUnitName();
 
         if (!force && cache[activeUnitText]) {
           console.log('[PESUmate] Cache hit: ' + activeUnitText);
@@ -269,64 +329,53 @@
         progressBar.css('width', '5%');
 
         try {
-          // Step 1: subjectid
-          var subjectid = null;
-          $('#CourseContentId [onclick*="handleclasscoursecontentunit"]').first().each(function () {
-            var m = $(this).attr('onclick').match(/handleclasscoursecontentunit\('[^']+','([^']+)'/);
-            if (m) subjectid = m[1];
-          });
-          if (!subjectid) {
-            statusDiv.text('Could not find subject ID');
-            titleDiv.text('Error');
-            _fetching = false;
-            refetchBtn.prop('disabled', false).css('opacity', 1);
-            progressWrap.hide();
-            return;
-          }
-
-          // Step 2: units
-          statusDiv.text('Fetching units...');
+          // Steps 1-2: subject ID and class list, both read straight from the DOM.
+          //
+          // These used to come from /Academy/a/i/getCourse and
+          // /Academy/a/i/getCourseClasses, but /Academy/a/i/* is the admin
+          // namespace and now answers "Access denied for student role" (HTTP 403)
+          // for every student account. The page itself never calls them: the unit
+          // tabs carry handleclassUnit('<unitid>') and each class link carries
+          //   handleclasscoursecontentunit('<classUuid>','<subjectid>',...)
+          // so both values are already on the page.
+          statusDiv.text('Reading classes...');
           progressBar.css('width', '15%');
-          var unitsHtml = await $.get('/Academy/a/i/getCourse/' + subjectid);
-          var units = [];
-          $(unitsHtml).filter('option').add($(unitsHtml).find('option')).each(function () {
-            var val = $(this).val(), name = $(this).text().trim();
-            if (val && name) units.push({ id: val.replace(/[\\'"]/g, '').trim(), name: name });
+
+          var subjectid = null;
+          var classes = [];
+          var seenClass = new Set();
+          $('[onclick*="handleclasscoursecontentunit"]').each(function () {
+            var m = ($(this).attr('onclick') || '')
+              .match(/handleclasscoursecontentunit\('([^']+)','([^']+)'/);
+            if (!m) return;
+            if (!subjectid) subjectid = m[2];
+            var uuid = m[1];
+            // One class appears once per content type; scan it a single time.
+            if (seenClass.has(uuid)) return;
+            seenClass.add(uuid);
+            classes.push({ id: uuid, name: $(this).text().trim() || ('Class ' + (classes.length + 1)) });
           });
 
-          // Step 3: match active unit
-          var activeUnit = matchUnit(units, activeUnitText);
-          if (!activeUnit) {
-            statusDiv.text('No units found');
-            titleDiv.text('No units');
+          if (!subjectid || !classes.length) {
+            statusDiv.text('No classes found on this page - open a unit tab first');
+            titleDiv.text('Nothing to scan');
             _fetching = false;
             refetchBtn.prop('disabled', false).css('opacity', 1);
             progressWrap.hide();
             return;
           }
-
-          // Step 4: classes
-          statusDiv.text('Fetching classes...');
-          progressBar.css('width', '25%');
-          var classesResponse = await $.get('/Academy/a/i/getCourseClasses/' + activeUnit.id);
-          if (typeof classesResponse === 'string') { try { classesResponse = JSON.parse(classesResponse); } catch (e) { } }
-          var classesHtml = typeof classesResponse === 'string' ? classesResponse : JSON.stringify(classesResponse);
-          var classes = [];
-          $(classesHtml).filter('option').add($(classesHtml).find('option')).each(function () {
-            var val = $(this).val(), name = $(this).text().trim();
-            if (val && name) classes.push({ id: val.replace(/[\\'"]/g, '').trim(), name: name });
-          });
+          console.log('[PESUmate] DOM: subject ' + subjectid + ', ' + classes.length + ' classes');
 
           // Step 5: scan download links
           var seen = new Set();
           var downloadItems = [];
           for (var i = 0; i < classes.length; i++) {
             var cls = classes[i];
-            var pct = 25 + Math.round(((i + 1) / classes.length) * 70);
+            var pct = 15 + Math.round(((i + 1) / classes.length) * 80);
             statusDiv.text('Scanning ' + (i + 1) + '/' + classes.length + ': ' + cls.name);
             progressBar.css('width', pct + '%');
             try {
-              var response = await $.get('/Academy/s/studentProfilePESUAdmin', {
+              var response = await apiGet($, 'Step 5 (scan ' + cls.name + ')', '/Academy/s/studentProfilePESUAdmin', {
                 url: 'studentProfilePESUAdmin', controllerMode: '6403', actionType: '60',
                 selectedData: subjectid, id: '2', unitid: cls.id
               });
@@ -352,21 +401,28 @@
                   }
                 });
               }
-            } catch (err) { console.warn('[PESUmate] warn: ' + cls.name, err.statusText || err); }
+            } catch (err) { console.warn('[PESUmate] warn: ' + cls.name, errMsg(err)); }
             if (i < classes.length - 1) await new Promise(function (r) { setTimeout(r, 300); });
           }
 
           progressBar.css('width', '100%');
           progressWrap.hide();
 
-          cache[activeUnitText] = downloadItems;
-          console.log('[PESUmate] Cached: ' + activeUnitText + ' (' + downloadItems.length + ')');
+          // Never cache an empty result: [] is truthy, so one bad scrape would
+          // pin "No files found" until a manual refresh.
+          if (downloadItems.length) {
+            cache[activeUnitText] = downloadItems;
+            console.log('[PESUmate] Cached: ' + activeUnitText + ' (' + downloadItems.length + ')');
+          }
           renderItems(activeUnitText, downloadItems, false);
 
         } catch (err) {
           console.error('[PESUmate] Fetch error:', err);
+          if (err && err.responseText) {
+            console.error('[PESUmate] Server said:', String(err.responseText).slice(0, 500));
+          }
           titleDiv.text('Error');
-          statusDiv.text('Failed: ' + (err.message || err));
+          statusDiv.text('Failed: ' + errMsg(err));
           progressWrap.hide();
         }
 
@@ -378,7 +434,7 @@
       refetchBtn.on('click', function () { fetchAndRender(true); });
 
       // ─── Tab change observer ───
-      var _lastActiveTab = $('#courselistunit li.active a').text().trim();
+      var _lastActiveTab = activeUnitName();
       var tabContainer = document.querySelector('#courselistunit');
       if (tabContainer) {
         var observer = new MutationObserver(function () {
@@ -398,26 +454,6 @@
       console.log('[PESUmate] Ready');
 
       // ─── Helpers ───
-      function matchUnit(units, text) {
-        var unit = null;
-        for (var j = 0; j < units.length; j++) {
-          var u = units[j];
-          if (text.includes(u.name) || u.name.includes(text) ||
-            text.toLowerCase() === u.name.toLowerCase()) { unit = u; break; }
-        }
-        if (!unit) {
-          var words = text.toLowerCase().split(/\s+/);
-          var best = 0;
-          for (var k = 0; k < units.length; k++) {
-            var uw = units[k].name.toLowerCase().split(/\s+/);
-            var score = words.filter(function (w) { return uw.some(function (u2) { return u2.includes(w) || w.includes(u2); }); }).length;
-            if (score > best) { best = score; unit = units[k]; }
-          }
-        }
-        if (!unit && units.length > 0) unit = units[0];
-        return unit;
-      }
-
       function triggerDownload(blob, filename) {
         var a = document.createElement('a');
         a.href = URL.createObjectURL(blob);

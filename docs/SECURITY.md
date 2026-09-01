@@ -44,6 +44,10 @@ The extension requests minimal permissions:
 
 | Permission | Reason |
 |-----------|--------|
-| `host_permissions: pesuacademy.com` | Required to inject the content script and access course APIs |
+| `host_permissions: www.pesuacademy.com` | Required to inject the content script and access course APIs |
+| `host_permissions: files.pesuacademy.com` | Slide and document downloads redirect to this CDN host |
+| `declarativeNetRequest` | Adds CORS response headers (`Access-Control-Allow-Origin`, `Access-Control-Allow-Credentials`) to `files.pesuacademy.com` responses so the page can read the downloaded file. The rules are static and declared in `rules.json`; the extension never sees or intercepts request contents. |
 
-No other permissions (storage, tabs, webRequest, etc.) are requested.
+No other permissions (storage, tabs, webRequest, etc.) are requested. `declarativeNetRequest`
+modifies response headers only, via a fixed ruleset — unlike `webRequest`, it grants no ability
+to read request or response bodies.

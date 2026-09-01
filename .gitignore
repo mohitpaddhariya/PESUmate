@@ -30,3 +30,9 @@ temp/
 
 # Old console script (kept for reference but not part of extension)
 get-current-units-content-with-id.js
+
+# Chrome-generated indexed ruleset cache (rebuilt on every load)
+_metadata/
+
+# graphify knowledge graph output
+graphify-out/
